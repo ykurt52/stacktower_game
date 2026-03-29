@@ -17,8 +17,8 @@ public class Projectile : MonoBehaviour
     private float lifetime;
     private float slowAmount;
     private float slowDuration;
-    private float arenaBoundsX = 7f;
-    private float arenaBoundsZ = 7f;
+    private float arenaBoundsX = 8f;
+    private float arenaBoundsZ = 17f;
 
     // Special weapon behaviors
     private bool isBoomerang;
@@ -128,7 +128,7 @@ public class Projectile : MonoBehaviour
         {
             ArenaEnemy nearest = null;
             float minDist = 12f;
-            foreach (var enemy in Object.FindObjectsByType<ArenaEnemy>(FindObjectsSortMode.None))
+            foreach (var enemy in Object.FindObjectsByType<ArenaEnemy>())
             {
                 if (enemy.IsDead) continue;
                 float d = Vector3.Distance(transform.position, enemy.transform.position);

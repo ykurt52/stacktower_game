@@ -607,13 +607,7 @@ public class UIManager : MonoBehaviour
         gameOverPanel.SetActive(false);
         if (revivePanel != null) revivePanel.SetActive(false);
 
-        // Ensure VirtualJoystick Instance is set after panel activation
-        if (VirtualJoystick.Instance == null)
-        {
-            var js = gamePanel.GetComponentInChildren<VirtualJoystick>(true);
-            if (js != null)
-                Debug.Log("[UIManager] VirtualJoystick found but Instance was null -- forcing activation");
-        }
+        // Joystick is now created by ArenaManager at runtime
     }
 
     private void ShowGameOverPanel()
@@ -1228,79 +1222,7 @@ public class UIManager : MonoBehaviour
         uiLevelText.characterSpacing = 4f;
         uiLevelText.text = "Lv.1";
 
-        // ── HP Bar (below XP bar) ──
-        var hpRoot = new GameObject("HpBarRoot");
-        hpRoot.transform.SetParent(gamePanel.transform, false);
-        var hpRootRt = hpRoot.AddComponent<RectTransform>();
-        hpRootRt.anchorMin = new Vector2(0.15f, 0.90f);
-        hpRootRt.anchorMax = new Vector2(0.85f, 0.925f);
-        hpRootRt.offsetMin = Vector2.zero;
-        hpRootRt.offsetMax = Vector2.zero;
-
-        var hpBg = new GameObject("HpBg");
-        hpBg.transform.SetParent(hpRoot.transform, false);
-        var hpBgRt = hpBg.AddComponent<RectTransform>();
-        hpBgRt.anchorMin = Vector2.zero; hpBgRt.anchorMax = Vector2.one;
-        hpBgRt.offsetMin = Vector2.zero; hpBgRt.offsetMax = Vector2.zero;
-        var hpBgImg = hpBg.AddComponent<Image>();
-        hpBgImg.color = new Color(0.2f, 0.1f, 0.1f, 0.85f);
-
-        var hpFill = new GameObject("HpFill");
-        hpFill.transform.SetParent(hpRoot.transform, false);
-        var hpFillRt = hpFill.AddComponent<RectTransform>();
-        hpFillRt.anchorMin = Vector2.zero; hpFillRt.anchorMax = Vector2.one;
-        hpFillRt.offsetMin = new Vector2(2, 2); hpFillRt.offsetMax = new Vector2(-2, -2);
-        uiHpBarFill = hpFill.AddComponent<Image>();
-        uiHpBarFill.sprite = CreateWhiteSprite();
-        uiHpBarFill.color = new Color(0.55f, 0.85f, 0.62f);
-        uiHpBarFill.type = Image.Type.Filled;
-        uiHpBarFill.fillMethod = Image.FillMethod.Horizontal;
-        uiHpBarFill.fillAmount = 1f;
-
-        var hpTxt = new GameObject("HpText");
-        hpTxt.transform.SetParent(hpRoot.transform, false);
-        var hpTxtRt = hpTxt.AddComponent<RectTransform>();
-        hpTxtRt.anchorMin = Vector2.zero; hpTxtRt.anchorMax = Vector2.one;
-        hpTxtRt.offsetMin = Vector2.zero; hpTxtRt.offsetMax = new Vector2(-4, 0);
-        uiHpText = hpTxt.AddComponent<TextMeshProUGUI>();
-        uiHpText.fontSize = 22;
-        uiHpText.fontStyle = FontStyles.Bold;
-        uiHpText.color = Color.white;
-        uiHpText.alignment = TextAlignmentOptions.Center;
-        uiHpText.enableAutoSizing = true;
-        uiHpText.fontSizeMin = 12;
-        uiHpText.fontSizeMax = 22;
-        uiHpText.characterSpacing = 4f;
-        uiHpText.text = "";
-
-        // ── Shield Bar (below HP bar, thinner) ──
-        var shieldRoot = new GameObject("ShieldBarRoot");
-        shieldRoot.transform.SetParent(gamePanel.transform, false);
-        var shieldRootRt = shieldRoot.AddComponent<RectTransform>();
-        shieldRootRt.anchorMin = new Vector2(0.15f, 0.885f);
-        shieldRootRt.anchorMax = new Vector2(0.85f, 0.898f);
-        shieldRootRt.offsetMin = Vector2.zero;
-        shieldRootRt.offsetMax = Vector2.zero;
-
-        var shieldBg = new GameObject("ShieldBg");
-        shieldBg.transform.SetParent(shieldRoot.transform, false);
-        var shieldBgRt = shieldBg.AddComponent<RectTransform>();
-        shieldBgRt.anchorMin = Vector2.zero; shieldBgRt.anchorMax = Vector2.one;
-        shieldBgRt.offsetMin = Vector2.zero; shieldBgRt.offsetMax = Vector2.zero;
-        uiShieldBarBg = shieldBg.AddComponent<Image>();
-        uiShieldBarBg.color = new Color(0.2f, 0.2f, 0.2f, 0.85f);
-
-        var shieldFill = new GameObject("ShieldFill");
-        shieldFill.transform.SetParent(shieldRoot.transform, false);
-        var shieldFillRt = shieldFill.AddComponent<RectTransform>();
-        shieldFillRt.anchorMin = Vector2.zero; shieldFillRt.anchorMax = Vector2.one;
-        shieldFillRt.offsetMin = new Vector2(1, 1); shieldFillRt.offsetMax = new Vector2(-1, -1);
-        uiShieldBarFill = shieldFill.AddComponent<Image>();
-        uiShieldBarFill.sprite = CreateWhiteSprite();
-        uiShieldBarFill.color = new Color(0.60f, 0.75f, 0.95f);
-        uiShieldBarFill.type = Image.Type.Filled;
-        uiShieldBarFill.fillMethod = Image.FillMethod.Horizontal;
-        uiShieldBarFill.fillAmount = 0f;
+        // HP/Shield bars removed from HUD — now shown as overhead bars on ArenaCharacter
     }
 
     private void CreateStoneHud()
@@ -1375,79 +1297,162 @@ public class UIManager : MonoBehaviour
 
         // Dim BG
         var bg = CreateUIElement(abilityPickPanel.transform, "BG", Vector2.zero, Vector2.one);
-        var bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(0, 0, 0, 0.7f);
+        bg.AddComponent<Image>().color = new Color(0, 0, 0, 0.8f);
 
-        // Title
-        var title = CreateUIElement(abilityPickPanel.transform, "Title",
-            new Vector2(0.1f, 0.7f), new Vector2(0.9f, 0.8f));
-        var titleTmp = title.AddComponent<TextMeshProUGUI>();
-        titleTmp.text = "YETENek SEC";
-        titleTmp.fontSize = 40;
-        titleTmp.color = new Color(1f, 0.9f, 0.3f);
+        // Title banner
+        var titleBg = CreateUIElement(abilityPickPanel.transform, "TitleBg",
+            new Vector2(0.1f, 0.68f), new Vector2(0.9f, 0.76f));
+        titleBg.AddComponent<Image>().color = new Color(0.85f, 0.7f, 0.1f, 0.9f);
+
+        var titleObj = CreateUIElement(titleBg.transform, "TitleText", Vector2.zero, Vector2.one);
+        var titleTmp = titleObj.AddComponent<TextMeshProUGUI>();
+        titleTmp.text = "YETENEK SEC";
+        titleTmp.fontSize = 42;
+        titleTmp.color = Color.white;
         titleTmp.fontStyle = FontStyles.Bold;
         titleTmp.alignment = TextAlignmentOptions.Center;
         titleTmp.enableAutoSizing = true;
-        titleTmp.fontSizeMin = 20;
-        titleTmp.fontSizeMax = 40;
-        titleTmp.characterSpacing = 4f;
+        titleTmp.fontSizeMin = 20; titleTmp.fontSizeMax = 42;
+        titleTmp.characterSpacing = 6f;
+        titleTmp.raycastTarget = false;
 
-        // Ability cards
+        // Subtitle
+        var subtitleObj = CreateUIElement(abilityPickPanel.transform, "Subtitle",
+            new Vector2(0.1f, 0.64f), new Vector2(0.9f, 0.68f));
+        var subtitleTmp = subtitleObj.AddComponent<TextMeshProUGUI>();
+        subtitleTmp.text = "Bir yetenek sec!";
+        subtitleTmp.fontSize = 22;
+        subtitleTmp.color = new Color(0.8f, 0.8f, 0.8f);
+        subtitleTmp.alignment = TextAlignmentOptions.Center;
+        subtitleTmp.enableAutoSizing = true;
+        subtitleTmp.fontSizeMin = 12; subtitleTmp.fontSizeMax = 22;
+        subtitleTmp.characterSpacing = 4f;
+        subtitleTmp.raycastTarget = false;
+
+        // 3 cards side by side — Archero style vertical cards
+        float cardWidth = 0.29f;
+        float cardGap = 0.02f;
+        float startX = 0.055f;
+        float cardYMin = 0.28f;
+        float cardYMax = 0.62f;
+
         for (int i = 0; i < choices.Count; i++)
         {
-            var ability = choices[i];
-            float yMin = 0.55f - i * 0.15f;
-            float yMax = yMin + 0.12f;
+            var (abilityDef, tier) = choices[i];
+            Color rarityColor = AbilitySystem.GetRarityColor(tier.rarity);
+            Color rarityDark = new Color(rarityColor.r * 0.25f, rarityColor.g * 0.25f, rarityColor.b * 0.25f, 0.95f);
+            string rarityName = AbilitySystem.GetRarityName(tier.rarity);
 
-            var card = CreateUIElement(abilityPickPanel.transform, "Card_" + i,
-                new Vector2(0.1f, yMin), new Vector2(0.9f, yMax));
-            var cardImg = card.AddComponent<Image>();
-            cardImg.color = new Color(ability.color.r * 0.3f, ability.color.g * 0.3f, ability.color.b * 0.3f, 0.9f);
+            float xMin = startX + i * (cardWidth + cardGap);
+            float xMax = xMin + cardWidth;
 
-            // Icon/color strip
-            var strip = CreateUIElement(card.transform, "Strip",
-                new Vector2(0, 0), new Vector2(0.08f, 1));
-            var stripImg = strip.AddComponent<Image>();
-            stripImg.color = ability.color;
+            // Card outer border (rarity color)
+            var cardBorder = CreateUIElement(abilityPickPanel.transform, "CardBorder_" + i,
+                new Vector2(xMin, cardYMin), new Vector2(xMax, cardYMax));
+            cardBorder.AddComponent<Image>().color = rarityColor;
 
-            // Name
+            // Card inner bg (dark)
+            var card = CreateUIElement(cardBorder.transform, "Card",
+                new Vector2(0.02f, 0.01f), new Vector2(0.98f, 0.99f));
+            card.AddComponent<Image>().color = rarityDark;
+
+            // Rarity badge (top center)
+            var badgeBg = CreateUIElement(card.transform, "BadgeBg",
+                new Vector2(0.15f, 0.88f), new Vector2(0.85f, 0.98f));
+            badgeBg.AddComponent<Image>().color = new Color(rarityColor.r, rarityColor.g, rarityColor.b, 0.4f);
+            var badgeText = CreateUIElement(badgeBg.transform, "Text", Vector2.zero, Vector2.one);
+            var badgeTmp = badgeText.AddComponent<TextMeshProUGUI>();
+            badgeTmp.text = rarityName;
+            badgeTmp.fontSize = 14;
+            badgeTmp.color = Color.white;
+            badgeTmp.fontStyle = FontStyles.Bold;
+            badgeTmp.alignment = TextAlignmentOptions.Center;
+            badgeTmp.enableAutoSizing = true;
+            badgeTmp.fontSizeMin = 8; badgeTmp.fontSizeMax = 14;
+            badgeTmp.characterSpacing = 3f;
+            badgeTmp.raycastTarget = false;
+
+            // Icon area (center, large)
+            var iconBg = CreateUIElement(card.transform, "IconBg",
+                new Vector2(0.15f, 0.50f), new Vector2(0.85f, 0.86f));
+            iconBg.AddComponent<Image>().color = new Color(rarityColor.r * 0.4f, rarityColor.g * 0.4f, rarityColor.b * 0.4f, 0.8f);
+            var iconText = CreateUIElement(iconBg.transform, "Icon", Vector2.zero, Vector2.one);
+            var iconTmp = iconText.AddComponent<TextMeshProUGUI>();
+            iconTmp.text = GetAbilityIcon(abilityDef.id);
+            iconTmp.fontSize = 40;
+            iconTmp.color = rarityColor;
+            iconTmp.fontStyle = FontStyles.Bold;
+            iconTmp.alignment = TextAlignmentOptions.Center;
+            iconTmp.enableAutoSizing = true;
+            iconTmp.fontSizeMin = 20; iconTmp.fontSizeMax = 40;
+            iconTmp.raycastTarget = false;
+
+            // Name (below icon)
             var nameObj = CreateUIElement(card.transform, "Name",
-                new Vector2(0.1f, 0.5f), new Vector2(0.6f, 1f));
+                new Vector2(0.05f, 0.32f), new Vector2(0.95f, 0.50f));
             var nameTmp = nameObj.AddComponent<TextMeshProUGUI>();
-            nameTmp.text = ability.name;
-            nameTmp.fontSize = 26;
+            nameTmp.text = abilityDef.name;
+            nameTmp.fontSize = 20;
             nameTmp.color = Color.white;
             nameTmp.fontStyle = FontStyles.Bold;
-            nameTmp.alignment = TextAlignmentOptions.Left;
+            nameTmp.alignment = TextAlignmentOptions.Center;
             nameTmp.enableAutoSizing = true;
-            nameTmp.fontSizeMin = 14;
-            nameTmp.fontSizeMax = 26;
-            nameTmp.characterSpacing = 4f;
+            nameTmp.fontSizeMin = 10; nameTmp.fontSizeMax = 20;
+            nameTmp.characterSpacing = 3f;
+            nameTmp.raycastTarget = false;
 
-            // Description
+            // Description (bottom)
             var descObj = CreateUIElement(card.transform, "Desc",
-                new Vector2(0.1f, 0f), new Vector2(0.9f, 0.5f));
+                new Vector2(0.05f, 0.03f), new Vector2(0.95f, 0.32f));
             var descTmp = descObj.AddComponent<TextMeshProUGUI>();
-            descTmp.text = ability.description;
-            descTmp.fontSize = 20;
+            descTmp.text = tier.description;
+            descTmp.fontSize = 14;
             descTmp.color = new Color(0.8f, 0.8f, 0.8f);
-            descTmp.alignment = TextAlignmentOptions.Left;
+            descTmp.alignment = TextAlignmentOptions.Center;
             descTmp.enableAutoSizing = true;
-            descTmp.fontSizeMin = 10;
-            descTmp.fontSizeMax = 20;
-            descTmp.characterSpacing = 4f;
+            descTmp.fontSizeMin = 8; descTmp.fontSizeMax = 14;
+            descTmp.characterSpacing = 3f;
+            descTmp.raycastTarget = false;
 
-            // Button
-            var btn = card.AddComponent<Button>();
-            var abilityId = ability.id;
-            btn.onClick.AddListener(() => OnAbilityChosen(abilityId));
+            // Button (entire card border is clickable)
+            var btn = cardBorder.AddComponent<Button>();
+            var capturedId = abilityDef.id;
+            var capturedValue = tier.value;
+            btn.onClick.AddListener(() => OnAbilityChosen(capturedId, capturedValue));
         }
     }
 
-    private void OnAbilityChosen(AbilitySystem.AbilityId id)
+    private string GetAbilityIcon(AbilitySystem.AbilityId id)
+    {
+        return id switch
+        {
+            AbilitySystem.AbilityId.MultiHit       => "II",
+            AbilitySystem.AbilityId.AttackSpeedUp   => ">>",
+            AbilitySystem.AbilityId.AttackDamageUp  => "ATK",
+            AbilitySystem.AbilityId.MoveSpeedUp     => "SPD",
+            AbilitySystem.AbilityId.HPBoost         => "+HP",
+            AbilitySystem.AbilityId.Heal            => "+",
+            AbilitySystem.AbilityId.SlowOnHit       => "*",
+            AbilitySystem.AbilityId.MagnetRange     => "U",
+            AbilitySystem.AbilityId.Armor           => "DEF",
+            AbilitySystem.AbilityId.Vampirism       => "V",
+            AbilitySystem.AbilityId.Reflect         => "<>",
+            AbilitySystem.AbilityId.CriticalHit     => "!!",
+            AbilitySystem.AbilityId.Dodge           => "~",
+            AbilitySystem.AbilityId.Pierce          => "-->",
+            AbilitySystem.AbilityId.BounceWall      => "/\\",
+            AbilitySystem.AbilityId.RearArrow       => "<-",
+            AbilitySystem.AbilityId.DiagonalArrow   => "X",
+            AbilitySystem.AbilityId.Cleave          => ")(",
+            AbilitySystem.AbilityId.Stun            => "ZZ",
+            _ => "?"
+        };
+    }
+
+    private void OnAbilityChosen(AbilitySystem.AbilityId id, float tierValue)
     {
         if (AbilitySystem.Instance != null)
-            AbilitySystem.Instance.AcquireAbility(id);
+            AbilitySystem.Instance.AcquireAbility(id, tierValue);
 
         if (abilityPickPanel != null) Destroy(abilityPickPanel);
         Time.timeScale = 1f;

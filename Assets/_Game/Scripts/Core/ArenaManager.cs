@@ -11,8 +11,8 @@ public class ArenaManager : MonoBehaviour
     public static ArenaManager Instance { get; private set; }
 
     [Header("Arena - Portrait (narrow & tall)")]
-    [SerializeField] private float arenaHalfWidth = 5f;
-    [SerializeField] private float arenaHalfDepth = 16f;
+    private const float ARENA_HALF_WIDTH = 6f;
+    private const float ARENA_HALF_DEPTH = 15f;
 
     [Header("Wave Configuration")]
     [SerializeField] private WaveConfigSO _waveConfig;
@@ -20,6 +20,7 @@ public class ArenaManager : MonoBehaviour
 
     private ArenaCharacter character;
     private ArenaCamera arenaCamera;
+    private FloatingJoystick _joystickRef;
 
     // Wave state
     private int currentWave;
@@ -37,6 +38,9 @@ public class ArenaManager : MonoBehaviour
     // Object pool & active tracking
     private ObjectPool<ArenaEnemy> _enemyPool;
     private readonly HashSet<ArenaEnemy> _activeEnemies = new HashSet<ArenaEnemy>();
+
+    /// <summary>Read-only access to active enemies for targeting systems.</summary>
+    public HashSet<ArenaEnemy> ActiveEnemies => _activeEnemies;
 
     // Scene objects destroyed on cleanup (ground, walls, light, etc.)
     private List<GameObject> spawnedObjects = new List<GameObject>();
@@ -113,17 +117,27 @@ public class ArenaManager : MonoBehaviour
             camObj.AddComponent<AudioListener>();
         }
 
-        foreach (var cam in FindObjectsByType<Camera>(FindObjectsSortMode.None))
+        foreach (var cam in FindObjectsByType<Camera>())
         {
             if (cam.gameObject != camObj) Destroy(cam.gameObject);
         }
 
         var charObj = new GameObject("ArenaCharacter");
         character   = charObj.AddComponent<ArenaCharacter>();
-        character.Init(Vector3.zero);
-        character.SetBounds(arenaHalfWidth - 0.3f, arenaHalfDepth - 0.3f);
+        character.Init(new Vector3(0, 0, -ARENA_HALF_DEPTH * 0.6f)); // spawn at bottom center
+        character.SetBounds(ARENA_HALF_WIDTH - 0.8f, ARENA_HALF_DEPTH - 0.8f);
 
-        arenaCamera.Init(character.transform);
+        // Floating Joystick UI
+        _joystickRef = CreateFloatingJoystick();
+        character.SetJoystick(_joystickRef);
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        Debug.Log($"[Arena] Joystick: {(_joystickRef != null ? "OK" : "NULL")}, " +
+                  $"EventSystem: {(UnityEngine.EventSystems.EventSystem.current != null ? "OK" : "NULL")}, " +
+                  $"Character pos: {charObj.transform.position}");
+#endif
+
+        arenaCamera.Init(character.transform, ARENA_HALF_WIDTH * 2f);
 
         if (AbilitySystem.Instance == null)
             new GameObject("AbilitySystem").AddComponent<AbilitySystem>();
@@ -150,8 +164,7 @@ public class ArenaManager : MonoBehaviour
 
         if (waitingForFirstInput)
         {
-            if (VirtualJoystick.Instance != null
-                && VirtualJoystick.Instance.Magnitude > ArenaConstants.JOYSTICK_FIRST_INPUT_THRESHOLD)
+            if (_joystickRef != null && _joystickRef.Direction.sqrMagnitude > 0.01f)
             {
                 waitingForFirstInput = false;
                 character.Activate();
@@ -283,36 +296,55 @@ public class ArenaManager : MonoBehaviour
     private EnemyStatsSO GetEnemyStats(ArenaEnemy.EnemyType type)
     {
         if (_enemyStats == null) return null;
+
+        // Collect all matching stats for this type, pick one at random
+        int matchCount = 0;
         foreach (var s in _enemyStats)
-            if (s != null && s.type == type) return s;
-        return _enemyStats.Length > 0 ? _enemyStats[0] : null;
+            if (s != null && s.type == type) matchCount++;
+
+        if (matchCount == 0)
+            return _enemyStats.Length > 0 ? _enemyStats[0] : null;
+
+        int pick = Random.Range(0, matchCount);
+        int idx = 0;
+        foreach (var s in _enemyStats)
+        {
+            if (s != null && s.type == type)
+            {
+                if (idx == pick) return s;
+                idx++;
+            }
+        }
+
+        return _enemyStats[0];
     }
 
     private Vector3 GetSpawnPosition()
     {
-        float m = ArenaConstants.SPAWN_EDGE_MARGIN;
-        int   edge = Random.Range(0, 4);
-        float x, z;
+        float margin = 2.5f;
+        float safeW = ARENA_HALF_WIDTH - margin;
+        float safeD = ARENA_HALF_DEPTH - margin;
 
-        switch (edge)
+        int obsMask = 0;
+        int obsLayer = LayerMask.NameToLayer("Obstacle");
+        if (obsLayer >= 0) obsMask = 1 << obsLayer;
+
+        for (int attempt = 0; attempt < 20; attempt++)
         {
-            case 0:  x = Random.Range(-arenaHalfWidth + m, arenaHalfWidth - m); z =  arenaHalfDepth - m; break;
-            case 1:  x = Random.Range(-arenaHalfWidth + m, arenaHalfWidth - m); z = -arenaHalfDepth + m; break;
-            case 2:  x = -arenaHalfWidth + m; z = Random.Range(-arenaHalfDepth + m, arenaHalfDepth - m); break;
-            default: x =  arenaHalfWidth - m; z = Random.Range(-arenaHalfDepth + m, arenaHalfDepth - m); break;
+            float x = Random.Range(-safeW, safeW);
+            float z = Random.Range(2f, safeD);
+            Vector3 candidate = new Vector3(x, 0, z);
+
+            if (character != null && Vector3.Distance(candidate, character.transform.position) < ArenaConstants.SPAWN_MIN_PLAYER_DIST)
+                continue;
+
+            if (obsMask != 0 && Physics.CheckSphere(candidate + Vector3.up * 0.5f, 1.2f, obsMask))
+                continue;
+
+            return candidate;
         }
 
-        if (character != null)
-        {
-            var candidate = new Vector3(x, 0, z);
-            if (Vector3.Distance(candidate, character.transform.position) < ArenaConstants.SPAWN_MIN_PLAYER_DIST)
-            {
-                x = -x;
-                z = -z;
-            }
-        }
-
-        return new Vector3(x, 0, z);
+        return new Vector3(Random.Range(-safeW * 0.5f, safeW * 0.5f), 0, safeD * 0.7f);
     }
 
     // ── Pickup Spawning ──────────────────────────────────────────────────────
@@ -335,8 +367,8 @@ public class ArenaManager : MonoBehaviour
     private Vector3 GetRandomPickupPosition()
     {
         float m = ArenaConstants.PICKUP_INNER_MARGIN;
-        float x = Random.Range(-arenaHalfWidth + m, arenaHalfWidth - m);
-        float z = Random.Range(-arenaHalfDepth + m, arenaHalfDepth - m);
+        float x = Random.Range(-ARENA_HALF_WIDTH + m, ARENA_HALF_WIDTH - m);
+        float z = Random.Range(-ARENA_HALF_DEPTH + m, ARENA_HALF_DEPTH - m);
 
         if (character != null)
         {
@@ -370,68 +402,278 @@ public class ArenaManager : MonoBehaviour
         BeginWavePause(ArenaConstants.REVIVE_WAVE_PAUSE);
     }
 
-    // ── Arena Construction ───────────────────────────────────────────────────
+    // ── Arena Construction (Halloween Theme) ────────────────────────────────
 
     private void CreateArena()
     {
-        var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        ground.name                  = "ArenaGround";
-        ground.transform.position    = new Vector3(0, -0.1f, 0);
-        ground.transform.localScale  = new Vector3(arenaHalfWidth * 2f + 1f, 0.2f, arenaHalfDepth * 2f + 1f);
-        var groundMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        groundMat.color = new Color(0.25f, 0.55f, 0.25f);
-        ground.GetComponent<Renderer>().material = groundMat;
-        spawnedObjects.Add(ground);
+        // ── Phase 1: Ground ──
+        CreateGround();
 
-        Color borderColor     = new Color(0.15f, 0.35f, 0.15f);
-        float borderThickness = 0.3f;
-        float wallH           = 0.5f;
+        // ── Phase 2: Walls (fence border) ──
+        CreateFenceBorder();
 
-        CreateWall(new Vector3(0,  0,  arenaHalfDepth + borderThickness / 2f), new Vector3(arenaHalfWidth * 2f + 1f, wallH, borderThickness), borderColor);
-        CreateWall(new Vector3(0,  0, -arenaHalfDepth - borderThickness / 2f), new Vector3(arenaHalfWidth * 2f + 1f, wallH, borderThickness), borderColor);
-        CreateWall(new Vector3(-arenaHalfWidth - borderThickness / 2f, 0, 0),  new Vector3(borderThickness, wallH, arenaHalfDepth * 2f + 1f), borderColor);
-        CreateWall(new Vector3( arenaHalfWidth + borderThickness / 2f, 0, 0),  new Vector3(borderThickness, wallH, arenaHalfDepth * 2f + 1f), borderColor);
+        // ── Phase 3: Obstacles (Obstacle layer, LoS blockers) ──
+        CreateObstacles();
 
-        float dx = arenaHalfWidth  - 1.5f;
-        float dz = arenaHalfDepth  - 1.5f;
-        SpawnDecoration(new Vector3(-dx, 0,  dz));
-        SpawnDecoration(new Vector3( dx, 0, -dz));
-        SpawnDecoration(new Vector3( dx, 0,  dz));
-        SpawnDecoration(new Vector3(-dx, 0, -dz));
-
-        var lightObj = new GameObject("DirectionalLight");
-        var light    = lightObj.AddComponent<Light>();
-        light.type      = LightType.Directional;
-        light.color     = new Color(1f, 0.96f, 0.88f);
-        light.intensity = 1.2f;
-        lightObj.transform.rotation = Quaternion.Euler(50f, -30f, 0);
-        spawnedObjects.Add(lightObj);
+        // ── Phase 4: Decoration + Lighting ──
+        CreateDecorations();
+        CreateLighting();
     }
 
-    private void CreateWall(Vector3 pos, Vector3 scale, Color color)
+    private void CreateGround()
+    {
+        // Load floor tile
+        var floorPrefab = Resources.Load<GameObject>("Models/Environment/floor_dirt");
+        if (floorPrefab == null)
+        {
+            // Fallback: plain dark cube
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.name = "ArenaGround";
+            ground.transform.position = new Vector3(0, -0.1f, 0);
+            ground.transform.localScale = new Vector3(ARENA_HALF_WIDTH * 2f + 2f, 0.2f, ARENA_HALF_DEPTH * 2f + 2f);
+            ground.GetComponent<Renderer>().material = new Material(Shader.Find("Universal Render Pipeline/Lit"))
+                { color = new Color(0.2f, 0.18f, 0.15f) };
+            spawnedObjects.Add(ground);
+            return;
+        }
+
+        // Tile the floor — determine tile size from prefab bounds
+        var tempTile = Instantiate(floorPrefab);
+        var bounds = GetCompositeBounds(tempTile);
+        float tileW = Mathf.Max(bounds.size.x, 1f);
+        float tileD = Mathf.Max(bounds.size.z, 1f);
+        Destroy(tempTile);
+
+        float totalW = ARENA_HALF_WIDTH * 2f + 2f;
+        float totalD = ARENA_HALF_DEPTH * 2f + 2f;
+        int tilesX = Mathf.CeilToInt(totalW / tileW);
+        int tilesZ = Mathf.CeilToInt(totalD / tileD);
+
+        var tileParent = new GameObject("GroundTiles");
+        spawnedObjects.Add(tileParent);
+
+        for (int x = 0; x < tilesX; x++)
+        {
+            for (int z = 0; z < tilesZ; z++)
+            {
+                var tile = Instantiate(floorPrefab, tileParent.transform);
+                tile.transform.position = new Vector3(
+                    -totalW / 2f + tileW * 0.5f + x * tileW,
+                    0,
+                    -totalD / 2f + tileD * 0.5f + z * tileD);
+                // Remove colliders from floor tiles
+                foreach (var col in tile.GetComponentsInChildren<Collider>())
+                { col.enabled = false; Destroy(col); }
+            }
+        }
+
+        // Invisible ground collider for physics
+        var groundCol = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        groundCol.name = "GroundCollider";
+        groundCol.transform.position = new Vector3(0, -0.15f, 0);
+        groundCol.transform.localScale = new Vector3(totalW, 0.3f, totalD);
+        groundCol.GetComponent<Renderer>().enabled = false;
+        spawnedObjects.Add(groundCol);
+    }
+
+    private void CreateFenceBorder()
+    {
+        var fencePrefab = Resources.Load<GameObject>("Models/Environment/fence");
+        var pillarPrefab = Resources.Load<GameObject>("Models/Environment/fence_pillar");
+        var treeLargePrefab = Resources.Load<GameObject>("Models/Environment/tree_pine_orange_large");
+        var treeDeadPrefab = Resources.Load<GameObject>("Models/Environment/tree_dead_large");
+
+        float w = ARENA_HALF_WIDTH - 0.2f;
+        float d = ARENA_HALF_DEPTH - 0.2f;
+        float fenceSpacing = 2f;
+
+        // Fence along X edges (top and bottom walls) — fence faces +Z by default
+        for (float x = -w; x <= w; x += fenceSpacing)
+        {
+            SpawnEnvProp(fencePrefab, new Vector3(x, 0, d), 0f);
+            SpawnEnvProp(fencePrefab, new Vector3(x, 0, -d), 180f);
+        }
+
+        // Fence along Z edges (left and right walls) — rotated 90°
+        for (float z = -d; z <= d; z += fenceSpacing)
+        {
+            SpawnEnvProp(fencePrefab, new Vector3(-w, 0, z), 90f);
+            SpawnEnvProp(fencePrefab, new Vector3(w, 0, z), -90f);
+        }
+
+        // Corner pillars
+        SpawnEnvProp(pillarPrefab, new Vector3(-w, 0, d), 0f);
+        SpawnEnvProp(pillarPrefab, new Vector3(w, 0, d), 0f);
+        SpawnEnvProp(pillarPrefab, new Vector3(-w, 0, -d), 0f);
+        SpawnEnvProp(pillarPrefab, new Vector3(w, 0, -d), 0f);
+
+        // Trees at corners (outside fence, decorative)
+        float treeOff = 1.5f;
+        SpawnEnvProp(treeLargePrefab, new Vector3(-w - treeOff, 0, d + treeOff), Random.Range(0f, 360f));
+        SpawnEnvProp(treeLargePrefab, new Vector3(w + treeOff, 0, d + treeOff), Random.Range(0f, 360f));
+        SpawnEnvProp(treeDeadPrefab, new Vector3(-w - treeOff, 0, -d - treeOff), Random.Range(0f, 360f));
+        SpawnEnvProp(treeDeadPrefab, new Vector3(w + treeOff, 0, -d - treeOff), Random.Range(0f, 360f));
+
+        // Invisible wall colliders (physics boundary — keeps players/enemies inside)
+        float wallH = 3f;
+        float thick = 0.5f;
+        CreateInvisibleWall(new Vector3(0, wallH / 2f, d + thick / 2f), new Vector3(w * 2f + 2f, wallH, thick));
+        CreateInvisibleWall(new Vector3(0, wallH / 2f, -d - thick / 2f), new Vector3(w * 2f + 2f, wallH, thick));
+        CreateInvisibleWall(new Vector3(-w - thick / 2f, wallH / 2f, 0), new Vector3(thick, wallH, d * 2f + 2f));
+        CreateInvisibleWall(new Vector3(w + thick / 2f, wallH / 2f, 0), new Vector3(thick, wallH, d * 2f + 2f));
+    }
+
+    private void CreateObstacles()
+    {
+        int obstacleLayer = LayerMask.NameToLayer("Obstacle");
+
+        // Fixed map layout — 3 obstacles only
+        // 1) Pumpkin: 3 adım oyuncunun önünde (oyuncu Z=-9.6, pumpkin Z=-6)
+        SpawnObstacle("pumpkin_orange", new Vector3(0, 0, -6f), 0f, obstacleLayer);
+
+        // 2) Coffin: sol üst bölge
+        SpawnObstacle("coffin", new Vector3(-2.5f, 0, 7f), 15f, obstacleLayer);
+
+        // 3) Shrine/pillar: haritanın tam ortası
+        SpawnObstacle("shrine", new Vector3(0, 0, 0), 0f, obstacleLayer);
+    }
+
+    private void SpawnObstacle(string assetName, Vector3 pos, float yRot, int obstacleLayer)
+    {
+        var prefab = Resources.Load<GameObject>($"Models/Environment/{assetName}");
+        if (prefab == null) return;
+
+        var obj = Instantiate(prefab);
+        obj.name = "Obstacle_" + assetName;
+        obj.transform.position = pos;
+        obj.transform.rotation = Quaternion.Euler(0, yRot, 0);
+
+        // Get bounds then replace colliders
+        var bounds = GetCompositeBounds(obj);
+        foreach (var c in obj.GetComponentsInChildren<Collider>())
+            DestroyImmediate(c);
+
+        var box = obj.AddComponent<BoxCollider>();
+        box.center = obj.transform.InverseTransformPoint(bounds.center);
+        box.size = new Vector3(
+            Mathf.Max(bounds.size.x, 0.6f),
+            Mathf.Max(bounds.size.y, 1.5f),
+            Mathf.Max(bounds.size.z, 0.6f));
+        box.isTrigger = false;
+
+        var rb = obj.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+
+        if (obstacleLayer >= 0)
+            SetLayerRecursive(obj, obstacleLayer);
+
+        spawnedObjects.Add(obj);
+    }
+
+    private void CreateDecorations()
+    {
+        var pumpkinSmall = Resources.Load<GameObject>("Models/Environment/pumpkin_orange");
+        var skullPrefab = Resources.Load<GameObject>("Models/Environment/skull_candle");
+        var postLantern = Resources.Load<GameObject>("Models/Environment/post_lantern");
+
+        float w = ARENA_HALF_WIDTH - 0.2f;
+        float d = ARENA_HALF_DEPTH - 0.2f;
+
+        // Small pumpkins scattered as decoration (not obstacles)
+        SpawnEnvProp(pumpkinSmall, new Vector3(3f, 0, -3f), 30f);
+        SpawnEnvProp(pumpkinSmall, new Vector3(-3.5f, 0, 4f), 120f);
+        SpawnEnvProp(pumpkinSmall, new Vector3(2f, 0, 12f), 200f);
+
+        // Skulls
+        SpawnEnvProp(skullPrefab, new Vector3(-1.5f, 0, 5f), 45f);
+        SpawnEnvProp(skullPrefab, new Vector3(2f, 0, -10f), 90f);
+
+        // Lanterns on fence posts (elevated, attached to fence line)
+        float lanternY = 0.8f;  // raised up on fence
+        SpawnEnvProp(postLantern, new Vector3(-w, 0, d * 0.3f), 0f);
+        SpawnEnvProp(postLantern, new Vector3(w, 0, d * 0.3f), 180f);
+        SpawnEnvProp(postLantern, new Vector3(-w, 0, -d * 0.3f), 0f);
+        SpawnEnvProp(postLantern, new Vector3(w, 0, -d * 0.3f), 180f);
+
+        // Point lights at lantern positions
+        CreatePointLight(new Vector3(-w, lanternY, d * 0.3f), new Color(1f, 0.6f, 0.2f), 4f, 0.7f);
+        CreatePointLight(new Vector3(w, lanternY, d * 0.3f), new Color(1f, 0.6f, 0.2f), 4f, 0.7f);
+        CreatePointLight(new Vector3(-w, lanternY, -d * 0.3f), new Color(1f, 0.6f, 0.2f), 4f, 0.7f);
+        CreatePointLight(new Vector3(w, lanternY, -d * 0.3f), new Color(1f, 0.6f, 0.2f), 4f, 0.7f);
+
+    }
+
+    private void CreateLighting()
+    {
+        // Main directional light — dim, cool moonlight
+        var lightObj = new GameObject("MoonLight");
+        var light = lightObj.AddComponent<Light>();
+        light.type = LightType.Directional;
+        light.color = new Color(0.6f, 0.65f, 0.8f); // cool blue moonlight
+        light.intensity = 0.8f;
+        lightObj.transform.rotation = Quaternion.Euler(45f, -30f, 0);
+        spawnedObjects.Add(lightObj);
+
+        // Ambient: dark warm
+        RenderSettings.ambientLight = new Color(0.15f, 0.1f, 0.08f);
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+    }
+
+    // ── Arena Helpers ────────────────────────────────────────────────────────
+
+    private GameObject SpawnEnvProp(GameObject prefab, Vector3 pos, float yRotation, bool keepCollider = false)
+    {
+        if (prefab == null) return null;
+        var obj = Instantiate(prefab);
+        obj.transform.position = pos;
+        obj.transform.rotation = Quaternion.Euler(0, yRotation, 0);
+        if (!keepCollider)
+        {
+            foreach (var col in obj.GetComponentsInChildren<Collider>())
+            { col.enabled = false; Destroy(col); }
+        }
+        spawnedObjects.Add(obj);
+        return obj;
+    }
+
+    private void CreateInvisibleWall(Vector3 pos, Vector3 scale)
     {
         var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        wall.name                 = "Wall";
-        wall.transform.position   = pos;
+        wall.name = "InvisibleWall";
+        wall.transform.position = pos;
         wall.transform.localScale = scale;
-        var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        mat.color = color;
-        wall.GetComponent<Renderer>().material = mat;
+        wall.GetComponent<Renderer>().enabled = false;
         spawnedObjects.Add(wall);
     }
 
-    private void SpawnDecoration(Vector3 pos)
+    private void CreatePointLight(Vector3 pos, Color color, float range, float intensity)
     {
-        var synty = SyntyAssets.Instance;
-        if (synty != null && synty.RockPrefab != null)
-        {
-            var rock = SyntyAssets.Spawn(synty.RockPrefab, null, pos, 0.3f, Random.Range(0f, 360f));
-            if (rock != null)
-            {
-                SyntyAssets.FixMaterials(rock, new Color(0.5f, 0.5f, 0.45f));
-                spawnedObjects.Add(rock);
-            }
-        }
+        var obj = new GameObject("PointLight");
+        obj.transform.position = pos;
+        var light = obj.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = color;
+        light.range = range;
+        light.intensity = intensity;
+        light.shadows = LightShadows.None;
+        spawnedObjects.Add(obj);
+    }
+
+    private static Bounds GetCompositeBounds(GameObject obj)
+    {
+        var renderers = obj.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return new Bounds(obj.transform.position, Vector3.one * 0.5f);
+        var bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            bounds.Encapsulate(renderers[i].bounds);
+        return bounds;
+    }
+
+    private static void SetLayerRecursive(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+            SetLayerRecursive(child.gameObject, layer);
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────────────
@@ -458,10 +700,10 @@ public class ArenaManager : MonoBehaviour
             if (obj != null) Destroy(obj);
         spawnedObjects.Clear();
 
-        foreach (var p in FindObjectsByType<Projectile>(FindObjectsSortMode.None))    Destroy(p.gameObject);
-        foreach (var g in FindObjectsByType<XPGem>(FindObjectsSortMode.None))         Destroy(g.gameObject);
-        foreach (var b in FindObjectsByType<ArenaBomb>(FindObjectsSortMode.None))     Destroy(b.gameObject);
-        foreach (var pk in FindObjectsByType<ArenaPickup>(FindObjectsSortMode.None))  Destroy(pk.gameObject);
+        foreach (var p in FindObjectsByType<Projectile>())    Destroy(p.gameObject);
+        foreach (var g in FindObjectsByType<XPGem>())         Destroy(g.gameObject);
+        foreach (var b in FindObjectsByType<ArenaBomb>())     Destroy(b.gameObject);
+        foreach (var pk in FindObjectsByType<ArenaPickup>())  Destroy(pk.gameObject);
 
         if (character != null) { Destroy(character.gameObject); character = null; }
 
@@ -479,4 +721,71 @@ public class ArenaManager : MonoBehaviour
             arenaCamera = null;
         }
     }
+
+    private FloatingJoystick CreateFloatingJoystick()
+    {
+        // Ensure EventSystem exists for UI touch input
+        if (UnityEngine.EventSystems.EventSystem.current == null)
+        {
+            var esObj = new GameObject("EventSystem");
+            esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            spawnedObjects.Add(esObj);
+        }
+
+        // Load prefab from Resources
+        var prefab = Resources.Load<GameObject>("Prefabs/FloatingJoystick");
+        if (prefab == null)
+        {
+            Debug.LogError("[ArenaManager] FloatingJoystick prefab not found in Resources/Prefabs/");
+            return null;
+        }
+
+        // Canvas for joystick
+        var canvasObj = new GameObject("JoystickCanvas");
+        var canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 50;
+        var scaler = canvasObj.AddComponent<UnityEngine.UI.CanvasScaler>();
+        scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1080, 1920);
+        scaler.matchWidthOrHeight = 0.5f;
+        canvasObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+        spawnedObjects.Add(canvasObj);
+
+        // Instantiate prefab
+        var instance = Instantiate(prefab, canvasObj.transform);
+        var joystick = instance.GetComponent<FloatingJoystick>();
+
+        // Make it cover bottom 75% of screen for touch area
+        var rt = instance.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = new Vector2(1f, 0.75f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        return joystick;
+    }
+
+#if DEVELOPMENT_BUILD
+    private void OnGUI()
+    {
+        var style = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 28,
+            normal = { textColor = Color.yellow }
+        };
+        float y = 200;
+        GUI.Label(new Rect(20, y, 800, 40), $"Joystick: {(_joystickRef != null ? "OK" : "NULL")}", style);
+        y += 40;
+        GUI.Label(new Rect(20, y, 800, 40), $"EventSystem: {(UnityEngine.EventSystems.EventSystem.current != null ? "OK" : "NULL")}", style);
+        y += 40;
+        GUI.Label(new Rect(20, y, 800, 40), $"Character: {(character != null ? character.transform.position.ToString() : "NULL")}", style);
+        y += 40;
+        if (_joystickRef != null)
+            GUI.Label(new Rect(20, y, 800, 40), $"Joy Dir: {_joystickRef.Direction}", style);
+        y += 40;
+        GUI.Label(new Rect(20, y, 800, 40), $"Touch: {Input.touchCount}", style);
+    }
+#endif
 }

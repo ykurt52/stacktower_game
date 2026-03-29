@@ -179,7 +179,7 @@ public class ArenaPickup : MonoBehaviour
 
             case PickupType.Bomb:
                 // Kill/damage all enemies on screen
-                foreach (var enemy in FindObjectsByType<ArenaEnemy>(FindObjectsSortMode.None))
+                foreach (var enemy in FindObjectsByType<ArenaEnemy>())
                 {
                     if (!enemy.IsDead)
                         enemy.TakeDamage(enemy.MaxHP / 2);

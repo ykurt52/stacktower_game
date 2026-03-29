@@ -36,11 +36,17 @@ public class EnemyStatsSO : ScriptableObject
     [Min(0.1f)] public float colliderHeight = 0.8f;
     [Min(0.05f)] public float triggerRadius = 0.2f;
 
+    [Header("Weapon Attach (KayKit skeleton enemies)")]
+    [Tooltip("Weapon model name in Resources/Models/Enemies/ to attach to right hand")]
+    public string rightHandWeapon = "";
+    [Tooltip("Shield/off-hand model name to attach to left hand")]
+    public string leftHandWeapon = "";
+
     [Header("Visual -- Procedural Fallback")]
     [Min(0.1f)] public float bodyHeight = 0.5f;
     [Min(0.1f)] public float bodyWidth = 0.3f;
     public Color bodyColor = Color.red;
     public Color trimColor = Color.black;
-    [Min(0.1f)] public float modelScale = 0.75f;
+    [Min(0.1f)] public float modelScale = 0.45f;
     [Min(0.1f)] public float barWidth = 0.5f;
 }

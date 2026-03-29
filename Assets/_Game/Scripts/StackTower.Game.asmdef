@@ -2,7 +2,8 @@
     "name": "StackTower.Game",
     "references": [
         "Unity.TextMeshPro",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "JoystickPack"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

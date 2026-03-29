@@ -416,9 +416,9 @@ public class TowerManager : MonoBehaviour
         }
 
         // Also destroy wizard traps and projectiles (not in spawnedObjects list)
-        foreach (var trap in FindObjectsByType<TowerWizardTrap>(FindObjectsSortMode.None))
+        foreach (var trap in FindObjectsByType<TowerWizardTrap>())
             Destroy(trap.gameObject);
-        foreach (var proj in FindObjectsByType<TowerWizardProjectile>(FindObjectsSortMode.None))
+        foreach (var proj in FindObjectsByType<TowerWizardProjectile>())
             Destroy(proj.gameObject);
     }
 
@@ -1048,71 +1048,71 @@ public class TowerManager : MonoBehaviour
         }
         spawnedObjects.Clear();
 
-        foreach (var enemy in FindObjectsByType<TowerEnemy>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var enemy in FindObjectsByType<TowerEnemy>(FindObjectsInactive.Exclude))
         {
             if (enemy != null) { DisableAllColliders(enemy.gameObject); Destroy(enemy.gameObject); }
         }
-        foreach (var coin in FindObjectsByType<TowerCoin>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var coin in FindObjectsByType<TowerCoin>(FindObjectsInactive.Exclude))
         {
             if (coin != null) { DisableAllColliders(coin.gameObject); Destroy(coin.gameObject); }
         }
-        foreach (var pad in FindObjectsByType<TowerSpringPad>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var pad in FindObjectsByType<TowerSpringPad>(FindObjectsInactive.Exclude))
         {
             if (pad != null) { DisableAllColliders(pad.gameObject); Destroy(pad.gameObject); }
         }
-        foreach (var shield in FindObjectsByType<TowerShield>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var shield in FindObjectsByType<TowerShield>(FindObjectsInactive.Exclude))
         {
             if (shield != null) { DisableAllColliders(shield.gameObject); Destroy(shield.gameObject); }
         }
-        foreach (var soldier in FindObjectsByType<TowerSoldier>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var soldier in FindObjectsByType<TowerSoldier>(FindObjectsInactive.Exclude))
         {
             if (soldier != null) { DisableAllColliders(soldier.gameObject); Destroy(soldier.gameObject); }
         }
-        foreach (var bullet in FindObjectsByType<TowerBullet>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var bullet in FindObjectsByType<TowerBullet>(FindObjectsInactive.Exclude))
         {
             if (bullet != null) { DisableAllColliders(bullet.gameObject); Destroy(bullet.gameObject); }
         }
-        foreach (var knight in FindObjectsByType<TowerKnight>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var knight in FindObjectsByType<TowerKnight>(FindObjectsInactive.Exclude))
         {
             if (knight != null) { DisableAllColliders(knight.gameObject); Destroy(knight.gameObject); }
         }
-        foreach (var bat in FindObjectsByType<TowerBat>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var bat in FindObjectsByType<TowerBat>(FindObjectsInactive.Exclude))
         {
             if (bat != null) { DisableAllColliders(bat.gameObject); Destroy(bat.gameObject); }
         }
-        foreach (var wiz in FindObjectsByType<TowerWizard>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var wiz in FindObjectsByType<TowerWizard>(FindObjectsInactive.Exclude))
         {
             if (wiz != null) { DisableAllColliders(wiz.gameObject); Destroy(wiz.gameObject); }
         }
-        foreach (var trap in FindObjectsByType<TowerWizardTrap>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var trap in FindObjectsByType<TowerWizardTrap>(FindObjectsInactive.Exclude))
         {
             if (trap != null) { DisableAllColliders(trap.gameObject); Destroy(trap.gameObject); }
         }
-        foreach (var bomber in FindObjectsByType<TowerBomber>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var bomber in FindObjectsByType<TowerBomber>(FindObjectsInactive.Exclude))
         {
             if (bomber != null) { DisableAllColliders(bomber.gameObject); Destroy(bomber.gameObject); }
         }
-        foreach (var bomb in FindObjectsByType<TowerBomb>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var bomb in FindObjectsByType<TowerBomb>(FindObjectsInactive.Exclude))
         {
             if (bomb != null) { DisableAllColliders(bomb.gameObject); Destroy(bomb.gameObject); }
         }
-        foreach (var guard in FindObjectsByType<TowerShieldGuard>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var guard in FindObjectsByType<TowerShieldGuard>(FindObjectsInactive.Exclude))
         {
             if (guard != null) { DisableAllColliders(guard.gameObject); Destroy(guard.gameObject); }
         }
-        foreach (var ice in FindObjectsByType<TowerIceMage>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var ice in FindObjectsByType<TowerIceMage>(FindObjectsInactive.Exclude))
         {
             if (ice != null) { DisableAllColliders(ice.gameObject); Destroy(ice.gameObject); }
         }
-        foreach (var proj in FindObjectsByType<TowerIceProjectile>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var proj in FindObjectsByType<TowerIceProjectile>(FindObjectsInactive.Exclude))
         {
             if (proj != null) { DisableAllColliders(proj.gameObject); Destroy(proj.gameObject); }
         }
-        foreach (var boss in FindObjectsByType<TowerBoss>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var boss in FindObjectsByType<TowerBoss>(FindObjectsInactive.Exclude))
         {
             if (boss != null) { DisableAllColliders(boss.gameObject); Destroy(boss.gameObject); }
         }
-        foreach (var pProj in FindObjectsByType<TowerPlayerProjectile>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        foreach (var pProj in FindObjectsByType<TowerPlayerProjectile>(FindObjectsInactive.Exclude))
         {
             if (pProj != null) { DisableAllColliders(pProj.gameObject); Destroy(pProj.gameObject); }
         }

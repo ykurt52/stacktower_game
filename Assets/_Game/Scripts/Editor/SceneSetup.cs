@@ -1368,30 +1368,7 @@ public static class SceneSetup
         pbRT.sizeDelta = Vector2.zero;
         pbRT.anchoredPosition = Vector2.zero;
 
-        // Virtual joystick
-        GameObject joystickArea = new GameObject("JoystickArea");
-        joystickArea.transform.SetParent(refs.panel.transform, false);
-        RectTransform jaRT = joystickArea.AddComponent<RectTransform>();
-        jaRT.anchorMin = new Vector2(0f, 0.05f);
-        jaRT.anchorMax = new Vector2(1f, 0.80f);
-        jaRT.offsetMin = Vector2.zero;
-        jaRT.offsetMax = Vector2.zero;
-
-        joystickArea.AddComponent<VirtualJoystick>();
-
-        // Joystick BG
-        GameObject jsBg = new GameObject("JoystickBG");
-        jsBg.transform.SetParent(joystickArea.transform, false);
-        RectTransform jsBgRT = jsBg.AddComponent<RectTransform>();
-        jsBgRT.sizeDelta = new Vector2(180, 180);
-        jsBg.AddComponent<Image>().color = new Color(1, 1, 1, 0.25f);
-
-        // Joystick Knob
-        GameObject jsKnob = new GameObject("JoystickKnob");
-        jsKnob.transform.SetParent(jsBg.transform, false);
-        RectTransform jsKnobRT = jsKnob.AddComponent<RectTransform>();
-        jsKnobRT.sizeDelta = new Vector2(70, 70);
-        jsKnob.AddComponent<Image>().color = new Color(1, 1, 1, 0.6f);
+        // Joystick is created at runtime by ArenaManager using FloatingJoystick prefab
 
         // Move hint
         CreateTMP(refs.panel.transform, "MoveHint",

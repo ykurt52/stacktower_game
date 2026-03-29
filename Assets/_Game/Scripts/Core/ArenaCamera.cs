@@ -1,58 +1,84 @@
 using UnityEngine;
 
 /// <summary>
-/// Top-down camera for Archero-style arena. Portrait orientation.
-/// Follows player on XZ plane with smooth tracking.
+/// Archero-style arena camera. Portrait orientation.
+/// Locked to arena center on X axis; follows player only on Z with gentle smoothing.
 /// </summary>
 public class ArenaCamera : MonoBehaviour
 {
     [Header("Follow")]
-    [SerializeField] private float followSmooth = 6f;
-    [SerializeField] private Vector3 offset = new Vector3(0, 8f, -14f);
+    [SerializeField] private float followSmooth = 4f;
+    [SerializeField] private float zFollowStrength = 0.35f;
 
     [Header("Shake")]
     [SerializeField] private float defaultShakeIntensity = 0.15f;
 
-    private Transform target;
-    private float shakeTimer;
-    private float shakeIntensity;
-    private Vector3 shakeOffset;
+    private const float CAMERA_PITCH = 50f;
+    private const float CAMERA_HEIGHT = 12f;
+    private const float CAMERA_Z_OFFSET = -9f;
+    private const float ARENA_VIEW_MARGIN = 0.5f;
+    private const float MAX_FOV = 60f;
 
-    public void Init(Transform characterTransform)
+    private Transform _target;
+    private float _arenaCenterX;
+    private float _shakeTimer;
+    private float _shakeIntensity;
+
+    public void Init(Transform characterTransform, float arenaFullWidth)
     {
-        target = characterTransform;
-        transform.position = target.position + offset;
-        transform.rotation = Quaternion.Euler(30f, 0f, 0f);
+        _target = characterTransform;
+        _arenaCenterX = 0f;
+
+        Vector3 startPos = new Vector3(
+            _arenaCenterX,
+            CAMERA_HEIGHT,
+            _target.position.z + CAMERA_Z_OFFSET
+        );
+        transform.position = startPos;
+        transform.rotation = Quaternion.Euler(CAMERA_PITCH, 0f, 0f);
 
         var cam = GetComponent<Camera>();
         if (cam != null)
         {
             cam.orthographic = false;
-            cam.fieldOfView = 40f;
+            cam.fieldOfView = CalculateFOV(cam, arenaFullWidth + ARENA_VIEW_MARGIN * 2f);
             cam.nearClipPlane = 0.1f;
             cam.farClipPlane = 80f;
         }
     }
 
+    private float CalculateFOV(Camera cam, float targetWidth)
+    {
+        float distToGround = CAMERA_HEIGHT / Mathf.Sin(CAMERA_PITCH * Mathf.Deg2Rad);
+        float halfHFovRad = Mathf.Atan(targetWidth * 0.5f / distToGround);
+        float aspect = (float)Screen.width / Screen.height;
+        float vFovRad = 2f * Mathf.Atan(Mathf.Tan(halfHFovRad) / aspect);
+        return Mathf.Min(vFovRad * Mathf.Rad2Deg, MAX_FOV);
+    }
+
     private void LateUpdate()
     {
-        if (target == null) return;
+        if (_target == null) return;
 
-        Vector3 desired = target.position + offset;
+        Vector3 desired = new Vector3(
+            _target.position.x,
+            CAMERA_HEIGHT,
+            _target.position.z + CAMERA_Z_OFFSET
+        );
         transform.position = Vector3.Lerp(transform.position, desired, followSmooth * Time.deltaTime);
 
         // Shake
-        if (shakeTimer > 0)
+        if (_shakeTimer > 0)
         {
-            shakeTimer -= Time.deltaTime;
-            shakeOffset = Random.insideUnitSphere * shakeIntensity * (shakeTimer > 0 ? 1f : 0f);
+            _shakeTimer -= Time.deltaTime;
+            Vector3 shakeOffset = Random.insideUnitSphere * _shakeIntensity * (_shakeTimer > 0 ? 1f : 0f);
             transform.position += shakeOffset;
         }
     }
 
     public void Shake(float intensity = -1f, float duration = 0.2f)
     {
-        shakeIntensity = intensity < 0 ? defaultShakeIntensity : intensity;
-        shakeTimer = duration;
+        _shakeIntensity = intensity < 0 ? defaultShakeIntensity : intensity;
+        _shakeTimer = duration;
     }
 }

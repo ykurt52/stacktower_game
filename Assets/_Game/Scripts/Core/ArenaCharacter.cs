@@ -9,7 +9,7 @@
 public class ArenaCharacter : MonoBehaviour
 {
     [Header("Movement")]
-    [SerializeField] private float baseSpeed = 5f;
+    [SerializeField] private float baseSpeed = 3f;
 
     [Header("Attack")]
     [SerializeField] private float baseAttackRate = 0.6f;
@@ -44,10 +44,9 @@ public class ArenaCharacter : MonoBehaviour
     private float magnetBuffTimer;
     private float magnetBuffRange;
 
-    // Direct touch input (Android fallback)
-    private int directTouchId = -1;
-    private Vector2 directTouchOrigin;
-    private bool ignoreNextTouch;
+    // Joystick reference (set by ArenaManager at runtime)
+    private Joystick _joystick;
+    private int _obstacleMask;
 
     // Auto-backstep after melee attack
     private Vector3 backstepDir;
@@ -55,24 +54,22 @@ public class ArenaCharacter : MonoBehaviour
     private const float BACKSTEP_DURATION = 0.2f;
     private const float BACKSTEP_SPEED = 8f;
 
-    // Dodge roll
-    private float dodgeCooldown;
-    private float dodgeTimer;
-    private Vector3 dodgeDir;
-    private const float DODGE_DURATION = 0.8f;
-    private const float DODGE_SPEED = 5f;
-    private const float DODGE_COOLDOWN = 1.5f;
+    // Dodge disabled — no dodge animation in KayKit Adventurers pack
 
     private GameObject modelRoot;
     private GanzSeAnimator ganzSeAnim;
     private Animator heroAnimator;
 
-    // Overhead HP/Shield bar
+    // Overhead HP/Shield bar (Archero style)
     private Transform barRoot;
     private Transform hpBarFill;
+    private Transform hpGhostFill;  // white ghost bar for damage animation
     private Transform shieldBarFill;
     private Transform shieldBarBg;
-    private float barWidth = 0.6f;
+    private TextMesh hpValueText;
+    private TextMesh[] hpShadowTexts;
+    private float barWidth = 0.72f;
+    private float _ghostHP;         // ghost bar tracks delayed HP
 
     // Arena bounds
     private float boundsX = 5f;
@@ -86,9 +83,13 @@ public class ArenaCharacter : MonoBehaviour
     public bool IsActive => isActive;
     public float BonusMagnetRange => magnetBuffTimer > 0 ? magnetBuffRange : 0f;
 
+    public void SetJoystick(Joystick joystick) => _joystick = joystick;
+
     public void Init(Vector3 position)
     {
         transform.position = position;
+        int layer = LayerMask.NameToLayer("Obstacle");
+        _obstacleMask = layer >= 0 ? (1 << layer) : 0;
 
         CalculateStats();
         LoadWeaponStats();
@@ -198,9 +199,6 @@ public class ArenaCharacter : MonoBehaviour
     public void Activate()
     {
         isActive = true;
-        directTouchOrigin = Vector2.zero;
-        directTouchId = -1;
-        ignoreNextTouch = true;
     }
 
     public void RecalculateMaxHP()
@@ -252,8 +250,8 @@ public class ArenaCharacter : MonoBehaviour
             int absorbed = Mathf.Min(currentShield, damage);
             currentShield -= absorbed;
             damage -= absorbed;
-            FloatingText.Spawn(transform.position + Vector3.up * 1.2f,
-                "-" + absorbed, new Color(0.3f, 0.6f, 1f), 0.8f);
+            FloatingText.Spawn(transform.position + Vector3.up * 1.5f,
+                "-" + absorbed, new Color(0.4f, 0.7f, 1f), 1f);
             if (damage <= 0)
             {
                 damageImmunity = 0.3f;
@@ -265,8 +263,8 @@ public class ArenaCharacter : MonoBehaviour
         damageImmunity = 0.8f;
         damageFlashTimer = 0.3f;
 
-        FloatingText.Spawn(transform.position + Vector3.up * 1f,
-            "-" + damage, new Color(1f, 0.3f, 0.3f), 1f);
+        FloatingText.Spawn(transform.position + Vector3.up * 1.5f,
+            "-" + damage, new Color(1f, 0.2f, 0.15f), 1.2f);
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlayHurt();
@@ -312,7 +310,6 @@ public class ArenaCharacter : MonoBehaviour
         damageImmunity -= Time.deltaTime;
         if (attackSpeedBuffTimer > 0) attackSpeedBuffTimer -= Time.deltaTime;
         if (magnetBuffTimer > 0) magnetBuffTimer -= Time.deltaTime;
-        if (dodgeCooldown > 0) dodgeCooldown -= Time.deltaTime;
 
         // Damage flash
         if (damageFlashTimer > 0)
@@ -326,27 +323,6 @@ public class ArenaCharacter : MonoBehaviour
                 if (damageFlashTimer <= 0)
                     modelRoot.transform.localScale = Vector3.one;
             }
-        }
-
-        // Dodge roll -- invincible + fast movement
-        if (dodgeTimer > 0)
-        {
-            dodgeTimer -= Time.deltaTime;
-            damageImmunity = 0.1f;
-            Vector3 dodgeMove = dodgeDir * DODGE_SPEED * Time.deltaTime;
-            Vector3 newPos = transform.position + dodgeMove;
-            newPos.x = Mathf.Clamp(newPos.x, -boundsX, boundsX);
-            newPos.z = Mathf.Clamp(newPos.z, -boundsZ, boundsZ);
-            newPos.y = 0;
-            transform.position = newPos;
-
-            // Dodge just finished -- force back to idle so next frame transitions correctly
-            if (dodgeTimer <= 0 && heroAnimator != null)
-            {
-                heroAnimator.SetFloat("Speed", 0f);
-                heroAnimator.Play("Idle", 0, 0f);
-            }
-            return;
         }
 
         // Auto-backstep after melee attack
@@ -364,14 +340,6 @@ public class ArenaCharacter : MonoBehaviour
         Vector2 input = GetMovementInput();
         bool isMoving = input.magnitude > 0.1f;
 
-        // Dodge roll trigger: double-tap or move while taking damage
-        if (isMoving && dodgeCooldown <= 0 && damageImmunity > -0.5f && damageImmunity < 0)
-        {
-            // Auto-dodge when recently hit and trying to move away
-            TriggerDodge(new Vector3(input.x, 0, input.y));
-            return;
-        }
-
         if (isMoving)
         {
             float speed = baseSpeed;
@@ -384,12 +352,34 @@ public class ArenaCharacter : MonoBehaviour
             newPos.x = Mathf.Clamp(newPos.x, -boundsX, boundsX);
             newPos.z = Mathf.Clamp(newPos.z, -boundsZ, boundsZ);
             newPos.y = 0;
+
+            // Obstacle collision check — don't move into obstacles
+            Vector3 origin = transform.position + Vector3.up * 0.3f;
+            Vector3 dir = (newPos - transform.position);
+            float dist = dir.magnitude;
+            if (dist > 0.001f && Physics.SphereCast(origin, 0.2f, dir.normalized, out _, dist + 0.05f, _obstacleMask))
+            {
+                // Blocked — try sliding along X and Z separately
+                Vector3 slideX = new Vector3(newPos.x, 0, transform.position.z);
+                Vector3 slideZ = new Vector3(transform.position.x, 0, newPos.z);
+
+                Vector3 dirX = slideX - transform.position;
+                Vector3 dirZ = slideZ - transform.position;
+
+                bool blockedX = dirX.magnitude > 0.001f && Physics.SphereCast(origin, 0.2f, dirX.normalized, out _, dirX.magnitude + 0.05f, _obstacleMask);
+                bool blockedZ = dirZ.magnitude > 0.001f && Physics.SphereCast(origin, 0.2f, dirZ.normalized, out _, dirZ.magnitude + 0.05f, _obstacleMask);
+
+                if (!blockedX) newPos = new Vector3(newPos.x, 0, transform.position.z);
+                else if (!blockedZ) newPos = new Vector3(transform.position.x, 0, newPos.z);
+                else newPos = transform.position; // fully blocked
+            }
+
             transform.position = newPos;
 
             if (modelRoot != null)
             {
-                float angle = Mathf.Atan2(input.x, input.y) * Mathf.Rad2Deg;
-                modelRoot.transform.rotation = Quaternion.Euler(0, angle, 0);
+                Vector3 moveDir = new Vector3(input.x, 0, input.y);
+                modelRoot.transform.rotation = Quaternion.LookRotation(moveDir, Vector3.up);
             }
 
             if (heroAnimator != null)
@@ -404,21 +394,7 @@ public class ArenaCharacter : MonoBehaviour
             else if (ganzSeAnim != null)
                 ganzSeAnim.CurrentState = GanzSeAnimator.AnimState.Idle;
 
-            // Face nearest enemy while idle (no range limit)
-            var closestAny = FindClosestEnemyNoRange();
-            if (closestAny != null && modelRoot != null)
-            {
-                Vector3 toEnemy = closestAny.transform.position - transform.position;
-                toEnemy.y = 0;
-                if (toEnemy.magnitude > 0.1f)
-                {
-                    float angle = Mathf.Atan2(toEnemy.x, toEnemy.z) * Mathf.Rad2Deg;
-                    modelRoot.transform.rotation = Quaternion.Slerp(
-                        modelRoot.transform.rotation,
-                        Quaternion.Euler(0, angle, 0),
-                        Time.deltaTime * 10f);
-                }
-            }
+            // No idle facing — rotation only updates when attacking (FireAtTarget)
 
             attackTimer -= Time.deltaTime;
             if (attackTimer <= 0)
@@ -439,80 +415,23 @@ public class ArenaCharacter : MonoBehaviour
         }
     }
 
-    private bool IsTouchInJoystickZone(Vector2 screenPos)
-    {
-        // Joystick zone: between bottom 5% and top 15% of screen
-        float y = screenPos.y / Screen.height;
-        return y > 0.05f && y < 0.80f;
-    }
-
     private Vector2 GetMovementInput()
     {
-        // Wait for previous touch to end before accepting new input
-        if (ignoreNextTouch)
+        // FloatingJoystick (Joystick Pack asset)
+        if (_joystick != null)
         {
-            if (Input.touchCount == 0 && !Input.GetMouseButton(0))
-                ignoreNextTouch = false;
-            return Vector2.zero;
+            Vector2 dir = _joystick.Direction;
+            if (dir.sqrMagnitude > 0.01f)
+                return dir;
         }
 
-        // Touch (Android/mobile)
-        if (Input.touchCount > 0)
-        {
-            Touch touch = Input.GetTouch(0);
-
-            if (touch.phase == TouchPhase.Began)
-            {
-                if (IsTouchInJoystickZone(touch.position))
-                    directTouchOrigin = touch.position;
-                else
-                    directTouchOrigin = Vector2.zero; // Outside zone, ignore
-            }
-
-            if (directTouchOrigin != Vector2.zero &&
-                (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary))
-            {
-                Vector2 delta = touch.position - directTouchOrigin;
-                if (delta.magnitude > 20f)
-                    return delta.normalized;
-            }
-
-            if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
-                directTouchOrigin = Vector2.zero;
-
-            return Vector2.zero;
-        }
-
-        // Mouse (editor fallback)
-        if (Input.GetMouseButtonDown(0) && IsTouchInJoystickZone(Input.mousePosition))
-            directTouchOrigin = Input.mousePosition;
-        if (Input.GetMouseButton(0) && directTouchOrigin != Vector2.zero)
-        {
-            Vector2 delta = (Vector2)Input.mousePosition - directTouchOrigin;
-            if (delta.magnitude > 20f)
-                return delta.normalized;
-        }
-        if (Input.GetMouseButtonUp(0))
-            directTouchOrigin = Vector2.zero;
-
-        // Keyboard (editor)
+        // Keyboard fallback (editor)
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         if (Mathf.Abs(h) > 0.1f || Mathf.Abs(v) > 0.1f)
             return new Vector2(h, v).normalized;
 
         return Vector2.zero;
-    }
-
-    private void TriggerDodge(Vector3 direction)
-    {
-        dodgeDir = direction.normalized;
-        dodgeTimer = DODGE_DURATION;
-        dodgeCooldown = DODGE_COOLDOWN;
-        damageImmunity = DODGE_DURATION + 0.1f;
-
-        if (heroAnimator != null)
-            heroAnimator.CrossFade("Roll", 0.1f);
     }
 
     /// <summary>Attack range based on weapon type</summary>
@@ -527,40 +446,56 @@ public class ArenaCharacter : MonoBehaviour
         };
     }
 
+    /// <summary>
+    /// Find priority target: lowest HP first, then closest distance.
+    /// No range limit — used for idle facing direction.
+    /// </summary>
     private ArenaEnemy FindClosestEnemyNoRange()
     {
-        ArenaEnemy nearest = null;
-        float minDist = float.MaxValue;
-        foreach (var enemy in FindObjectsByType<ArenaEnemy>(FindObjectsSortMode.None))
-        {
-            if (enemy.IsDead) continue;
-            float d = Vector3.Distance(transform.position, enemy.transform.position);
-            if (d < minDist)
-            {
-                minDist = d;
-                nearest = enemy;
-            }
-        }
-        return nearest;
+        return FindPriorityTarget(float.MaxValue);
     }
 
+    /// <summary>
+    /// Find priority target within attack range.
+    /// Priority: lowest HP → closest distance. LoS checked if obstacles exist.
+    /// </summary>
     private ArenaEnemy FindNearestEnemy()
     {
-        ArenaEnemy nearest = null;
-        float minDist = float.MaxValue;
-        float range = GetAttackRange();
+        return FindPriorityTarget(GetAttackRange());
+    }
 
-        foreach (var enemy in FindObjectsByType<ArenaEnemy>(FindObjectsSortMode.None))
+    private ArenaEnemy FindPriorityTarget(float maxRange)
+    {
+        var manager = ArenaManager.Instance;
+        if (manager == null) return null;
+
+        ArenaEnemy best = null;
+        int bestHP = int.MaxValue;
+        float bestDist = float.MaxValue;
+
+        foreach (var enemy in manager.ActiveEnemies)
         {
-            if (enemy.IsDead) continue;
-            float d = Vector3.Distance(transform.position, enemy.transform.position);
-            if (d < range && d < minDist)
+            if (enemy == null || enemy.IsDead) continue;
+
+            float dist = Vector3.Distance(transform.position, enemy.transform.position);
+            if (dist > maxRange) continue;
+
+            // LoS check — skip enemies behind obstacles
+            if (!LineOfSight.Check(transform.position, enemy.transform.position))
+                continue;
+
+            int hp = enemy.CurrentHP;
+
+            // Priority: lower HP wins, tie-break by closer distance
+            if (hp < bestHP || (hp == bestHP && dist < bestDist))
             {
-                minDist = d;
-                nearest = enemy;
+                best = enemy;
+                bestHP = hp;
+                bestDist = dist;
             }
         }
-        return nearest;
+
+        return best;
     }
 
     private void FireAtTarget(ArenaEnemy target)
@@ -570,8 +505,7 @@ public class ArenaCharacter : MonoBehaviour
 
         if (modelRoot != null)
         {
-            float angle = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
-            modelRoot.transform.rotation = Quaternion.Euler(0, angle, 0);
+            modelRoot.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
         }
 
         int damage = baseDamage;
@@ -674,46 +608,127 @@ public class ArenaCharacter : MonoBehaviour
 
     private void CreateOverheadBar()
     {
-        float barH = 0.04f;
-        float yPos = 0.75f;
+        float hpH = 0.10f;
+        float shieldH = 0.05f;
+        float outlineW = 0.015f;
+        float yPos = 1.15f;
+
+        _ghostHP = currentHP;
 
         barRoot = new GameObject("BarRoot").transform;
         barRoot.SetParent(transform, false);
         barRoot.localPosition = new Vector3(0, yPos, 0);
 
-        // HP background (gray -- represents missing HP)
-        CreateBarQuad(barRoot, "HPBarBG", barWidth, barH, new Color(0.25f, 0.25f, 0.25f));
+        // ── HP Bar ──
+        // Outline (black, slightly larger)
+        CreateBarQuad(barRoot, "HPOutline", barWidth + outlineW, hpH + outlineW, new Color(0, 0, 0, 0.9f), 0);
 
-        // HP fill (green -- represents current HP)
-        hpBarFill = CreateBarQuad(barRoot, "HPFill", barWidth, barH - 0.005f, new Color(0.2f, 0.85f, 0.2f));
-        hpBarFill.localPosition = new Vector3(0, 0, -0.005f);
+        // Background (dark gray)
+        CreateBarQuad(barRoot, "HPBarBG", barWidth, hpH, new Color(0.18f, 0.18f, 0.18f, 0.95f), 1);
 
-        // Shield bar background (gray -- represents missing/no shield)
+        // Ghost fill (white, shows damage trail)
+        hpGhostFill = CreateBarQuad(barRoot, "HPGhost", barWidth - 0.01f, hpH - 0.01f, new Color(1f, 1f, 1f, 0.6f), 2);
+        hpGhostFill.localPosition = new Vector3(0, 0, -0.003f);
+
+        // HP fill (green)
+        hpBarFill = CreateBarQuad(barRoot, "HPFill", barWidth - 0.01f, hpH - 0.01f, new Color(0.2f, 0.85f, 0.25f), 3);
+        hpBarFill.localPosition = new Vector3(0, 0, -0.006f);
+
+        // ── Shield Bar (below HP) ──
+        float shieldY = -(hpH * 0.5f + shieldH * 0.5f + 0.005f);
         bool hasShield = maxShield > 0;
-        Color shieldBgColor = hasShield ? new Color(0.2f, 0.2f, 0.3f) : new Color(0.2f, 0.2f, 0.2f);
-        shieldBarBg = CreateBarQuad(barRoot, "ShieldBG", barWidth, barH * 0.5f, shieldBgColor);
-        shieldBarBg.localPosition = new Vector3(0, barH * 0.55f, 0);
 
-        // Shield bar fill (blue -- represents current shield)
-        shieldBarFill = CreateBarQuad(barRoot, "ShieldFill", barWidth, barH * 0.5f - 0.003f, new Color(0.3f, 0.6f, 1f));
-        shieldBarFill.localPosition = new Vector3(0, barH * 0.55f, -0.005f);
+        // Shield outline
+        CreateBarQuad(barRoot, "ShieldOutline", barWidth + outlineW, shieldH + outlineW * 0.7f, new Color(0, 0, 0, 0.8f), 0)
+            .localPosition = new Vector3(0, shieldY, 0);
+
+        // Shield bg
+        shieldBarBg = CreateBarQuad(barRoot, "ShieldBG", barWidth, shieldH, new Color(0.12f, 0.12f, 0.2f, 0.9f), 1);
+        shieldBarBg.localPosition = new Vector3(0, shieldY, 0);
+
+        // Shield fill
+        shieldBarFill = CreateBarQuad(barRoot, "ShieldFill", barWidth - 0.01f, shieldH - 0.008f, new Color(0.35f, 0.6f, 1f), 3);
+        shieldBarFill.localPosition = new Vector3(0, shieldY, -0.005f);
 
         shieldBarBg.gameObject.SetActive(true);
         shieldBarFill.gameObject.SetActive(hasShield && currentShield > 0);
+
+        // ── HP value text (above HP bar) with outline ──
+        float textY = hpH * 0.5f + 0.035f;
+        float charSize = 0.028f;
+        int fontSize = 36;
+        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        // Shadow/outline (8 offset copies for thick outline)
+        float outOff = 0.012f;
+        Vector3[] offsets = {
+            new Vector3(outOff, 0, 0), new Vector3(-outOff, 0, 0),
+            new Vector3(0, outOff, 0), new Vector3(0, -outOff, 0),
+            new Vector3(outOff, outOff, 0), new Vector3(-outOff, outOff, 0),
+            new Vector3(outOff, -outOff, 0), new Vector3(-outOff, -outOff, 0)
+        };
+        hpShadowTexts = new TextMesh[offsets.Length];
+        for (int i = 0; i < offsets.Length; i++)
+        {
+            var shadow = new GameObject("HPShadow");
+            shadow.transform.SetParent(barRoot, false);
+            shadow.transform.localPosition = new Vector3(offsets[i].x, textY + offsets[i].y, -0.009f);
+            var stm = shadow.AddComponent<TextMesh>();
+            stm.text = $"{currentHP}/{maxHP}";
+            stm.fontSize = fontSize;
+            stm.characterSize = charSize;
+            stm.anchor = TextAnchor.MiddleCenter;
+            stm.alignment = TextAlignment.Center;
+            stm.fontStyle = FontStyle.Bold;
+            stm.color = Color.black;
+            if (font != null) stm.font = font;
+            shadow.GetComponent<MeshRenderer>().sortingOrder = 9;
+            hpShadowTexts[i] = stm;
+        }
+
+        // Main text
+        var textObj = new GameObject("HPText");
+        textObj.transform.SetParent(barRoot, false);
+        textObj.transform.localPosition = new Vector3(0, textY, -0.01f);
+        hpValueText = textObj.AddComponent<TextMesh>();
+        hpValueText.text = $"{currentHP}/{maxHP}";
+        hpValueText.fontSize = fontSize;
+        hpValueText.characterSize = charSize;
+        hpValueText.anchor = TextAnchor.MiddleCenter;
+        hpValueText.alignment = TextAlignment.Center;
+        hpValueText.fontStyle = FontStyle.Bold;
+        hpValueText.color = Color.white;
+        if (font != null) hpValueText.font = font;
+        textObj.GetComponent<MeshRenderer>().sortingOrder = 10;
     }
 
-    private Transform CreateBarQuad(Transform parent, string name, float w, float h, Color color)
+    private static Material _barMaterial;
+
+    private static Material GetBarMaterial()
+    {
+        if (_barMaterial != null) return _barMaterial;
+        _barMaterial = new Material(Shader.Find("Sprites/Default"));
+        return _barMaterial;
+    }
+
+    private Transform CreateBarQuad(Transform parent, string name, float w, float h, Color color, int sortOrder = 1)
     {
         var obj = GameObject.CreatePrimitive(PrimitiveType.Quad);
         obj.name = name;
         obj.transform.SetParent(parent, false);
+        obj.transform.localPosition = Vector3.zero;
         obj.transform.localScale = new Vector3(w, h, 1f);
-        var c = obj.GetComponent<Collider>();
-        if (c != null) { c.enabled = false; Destroy(c); }
-        var rend = obj.GetComponent<Renderer>();
-        var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+
+        var col = obj.GetComponent<Collider>();
+        if (col != null) { col.enabled = false; Object.Destroy(col); }
+
+        var rend = obj.GetComponent<MeshRenderer>();
+        var mat = new Material(GetBarMaterial());
         mat.color = color;
+        mat.renderQueue = 3000 + sortOrder;
         rend.material = mat;
+        rend.sortingOrder = sortOrder;
+
         return obj.transform;
     }
 
@@ -725,41 +740,61 @@ public class ArenaCharacter : MonoBehaviour
         if (cam != null)
             barRoot.rotation = cam.transform.rotation;
 
-        float barH = 0.04f;
+        float hpH = 0.10f;
+        float shieldH = 0.05f;
+        float fillW = barWidth - 0.015f;
+        float shieldY = -(hpH * 0.5f + shieldH * 0.5f + 0.005f);
 
-        // HP: green fill shrinks left-to-right, gray bg always full width
+        // ── Ghost bar: lerp toward actual HP (delayed white trail) ──
+        if (_ghostHP > currentHP)
+            _ghostHP = Mathf.Lerp(_ghostHP, currentHP, Time.deltaTime * 3f);
+        else
+            _ghostHP = currentHP;
+
+        // HP fill
         if (hpBarFill != null && maxHP > 0)
         {
             float ratio = Mathf.Clamp01((float)currentHP / maxHP);
-            hpBarFill.localScale = new Vector3(barWidth * ratio, barH - 0.005f, 1f);
-            hpBarFill.localPosition = new Vector3(-barWidth * (1f - ratio) * 0.5f, 0, -0.005f);
+            hpBarFill.localScale = new Vector3(fillW * ratio, hpH - 0.01f, 1f);
+            hpBarFill.localPosition = new Vector3(-fillW * (1f - ratio) * 0.5f, 0, -0.006f);
 
-            // Green when healthy, yellow mid, red low
             Color barColor;
-            if (ratio > 0.6f) barColor = new Color(0.2f, 0.85f, 0.2f);
-            else if (ratio > 0.3f) barColor = Color.Lerp(new Color(1f, 0.8f, 0.1f), new Color(0.2f, 0.85f, 0.2f), (ratio - 0.3f) / 0.3f);
+            if (ratio > 0.6f) barColor = new Color(0.2f, 0.85f, 0.25f);
+            else if (ratio > 0.3f) barColor = Color.Lerp(new Color(1f, 0.8f, 0.1f), new Color(0.2f, 0.85f, 0.25f), (ratio - 0.3f) / 0.3f);
             else barColor = Color.Lerp(new Color(0.9f, 0.15f, 0.1f), new Color(1f, 0.8f, 0.1f), ratio / 0.3f);
-            hpBarFill.GetComponent<Renderer>().material.color = barColor;
+            var rend = hpBarFill.GetComponent<MeshRenderer>();
+            if (rend != null) rend.material.color = barColor;
         }
 
-        // Shield: blue fill shrinks, gray/dark bg always full width
+        // Ghost fill (white trail behind HP)
+        if (hpGhostFill != null && maxHP > 0)
+        {
+            float ghostRatio = Mathf.Clamp01(_ghostHP / maxHP);
+            hpGhostFill.localScale = new Vector3(fillW * ghostRatio, hpH - 0.01f, 1f);
+            hpGhostFill.localPosition = new Vector3(-fillW * (1f - ghostRatio) * 0.5f, 0, -0.003f);
+        }
+
+        // HP value text
+        if (hpValueText != null)
+        {
+            string hpStr = $"{currentHP}/{maxHP}";
+            hpValueText.text = hpStr;
+            if (hpShadowTexts != null)
+                foreach (var s in hpShadowTexts)
+                    if (s != null) s.text = hpStr;
+        }
+
+        // Shield fill
         if (shieldBarFill != null && maxShield > 0)
         {
             float ratio = Mathf.Clamp01((float)currentShield / maxShield);
-            shieldBarFill.localScale = new Vector3(barWidth * ratio, barH * 0.5f - 0.003f, 1f);
-            shieldBarFill.localPosition = new Vector3(-barWidth * (1f - ratio) * 0.5f, barH * 0.55f, -0.005f);
-
-            shieldBarBg.gameObject.SetActive(true);
-            shieldBarBg.GetComponent<Renderer>().material.color = new Color(0.2f, 0.2f, 0.3f);
+            shieldBarFill.localScale = new Vector3(fillW * ratio, shieldH - 0.008f, 1f);
+            shieldBarFill.localPosition = new Vector3(-fillW * (1f - ratio) * 0.5f, shieldY, -0.005f);
             shieldBarFill.gameObject.SetActive(currentShield > 0);
-            shieldBarFill.GetComponent<Renderer>().material.color = new Color(0.3f, 0.6f, 1f);
         }
-        else if (shieldBarBg != null)
+        else if (shieldBarFill != null)
         {
-            // No shield purchased -- fully gray
-            shieldBarBg.gameObject.SetActive(true);
-            shieldBarBg.GetComponent<Renderer>().material.color = new Color(0.2f, 0.2f, 0.2f);
-            if (shieldBarFill != null) shieldBarFill.gameObject.SetActive(false);
+            shieldBarFill.gameObject.SetActive(false);
         }
     }
 
@@ -769,25 +804,26 @@ public class ArenaCharacter : MonoBehaviour
 
         modelRoot = new GameObject("HeroModel");
         modelRoot.transform.SetParent(transform, false);
-        modelRoot.transform.localPosition = Vector3.zero;
+        modelRoot.transform.localPosition = new Vector3(0, 0.05f, 0); // slight lift so feet are visible
 
         // Try ModelManager first (new system)
         if (ModelManager.Instance != null && ModelManager.Instance.IsLoaded)
         {
             var equipped = ModelManager.Instance.GetEquippedPlayerModel();
-            Debug.Log($"[ArenaCharacter] ModelManager equipped: {equipped?.displayName ?? "null"}, prefab: {equipped?.prefab?.name ?? "null"}");
             if (equipped != null)
             {
                 var hero = ModelManager.SpawnModel(equipped.prefab, modelRoot.transform);
-                Debug.Log($"[ArenaCharacter] SpawnModel result: {(hero != null ? hero.name : "null")}");
                 if (hero != null)
                 {
                     heroAnimator = hero.GetComponentInChildren<Animator>();
-                    Debug.Log($"[ArenaCharacter] Animator: {(heroAnimator != null ? "FOUND" : "NULL")}, controller: {heroAnimator?.runtimeAnimatorController?.name ?? "none"}");
                     if (heroAnimator != null)
                         SetupHeroAnimator(heroAnimator);
-                    else
-                        Debug.LogWarning("[ArenaCharacter] No Animator on spawned model! Check FBX Rig settings (must be Generic).");
+
+                    // Attach default weapon to character's hand
+                    ModelManager.AttachDefaultWeapon(hero, equipped.prefab.name);
+
+                    // Tiny steam puffs under feet
+                    CreateFootSteam();
                     return;
                 }
             }
@@ -838,6 +874,7 @@ public class ArenaCharacter : MonoBehaviour
         if (controller != null)
         {
             anim.runtimeAnimatorController = controller;
+            anim.applyRootMotion = false; // We control position/rotation manually
             Debug.Log($"[ArenaCharacter] Loaded animator for {modelName}");
 
             // Set weapon type based on equipped weapon
@@ -862,6 +899,15 @@ public class ArenaCharacter : MonoBehaviour
 
         if (heroAnimator != null)
             heroAnimator.SetInteger("WeaponType", currentWeaponAnimType);
+
+        // Notify AbilitySystem about weapon category for ability filtering
+        if (AbilitySystem.Instance != null)
+        {
+            var cat = currentWeaponAnimType <= 1
+                ? AbilitySystem.WeaponCategory.Melee
+                : AbilitySystem.WeaponCategory.Ranged;
+            AbilitySystem.Instance.SetWeaponCategory(cat);
+        }
     }
 
     private void SetHeroAnimation(string stateName, float speed = 0f)
@@ -885,6 +931,56 @@ public class ArenaCharacter : MonoBehaviour
         mat.color = color;
         rend.material = mat;
         return obj;
+    }
+
+    private ParticleSystem footSteamPS;
+
+    private void CreateFootSteam()
+    {
+        var steamObj = new GameObject("FootSteam");
+        steamObj.transform.SetParent(transform, false);
+        steamObj.transform.localPosition = new Vector3(0, 0.02f, 0);
+
+        footSteamPS = steamObj.AddComponent<ParticleSystem>();
+
+        var main = footSteamPS.main;
+        main.startLifetime = 0.4f;
+        main.startSpeed = 0.15f;
+        main.startSize = 0.06f;
+        main.startColor = new Color(0.85f, 0.85f, 0.95f, 0.35f);
+        main.maxParticles = 12;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.gravityModifier = -0.05f; // float upward slightly
+
+        var emission = footSteamPS.emission;
+        emission.rateOverTime = 0f; // controlled manually
+        emission.rateOverDistance = 8f; // emit while moving
+
+        var shape = footSteamPS.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 0.08f;
+        shape.rotation = new Vector3(90, 0, 0); // flat on ground
+
+        var sizeOverLifetime = footSteamPS.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f,
+            new AnimationCurve(
+                new Keyframe(0, 0.5f),
+                new Keyframe(0.3f, 1f),
+                new Keyframe(1f, 0f)));
+
+        var colorOverLifetime = footSteamPS.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+            new[] { new GradientAlphaKey(0.3f, 0), new GradientAlphaKey(0f, 1) });
+        colorOverLifetime.color = grad;
+
+        // Use default particle material
+        var renderer = steamObj.GetComponent<ParticleSystemRenderer>();
+        renderer.material = new Material(Shader.Find("Particles/Standard Unlit"));
+        renderer.material.color = new Color(0.9f, 0.9f, 1f, 0.3f);
     }
 }
 

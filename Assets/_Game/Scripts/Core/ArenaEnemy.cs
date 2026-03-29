@@ -29,6 +29,26 @@ public class ArenaEnemy : MonoBehaviour
     private Vector3 knockbackVel;
     private float knockbackTimer;
 
+    // AI State Machine
+    private enum AIState { Chase, Attack, Search, Patrol, Unstuck }
+    private AIState _aiState;
+    private Vector3 _lastKnownPlayerPos;
+    private Vector3 _patrolTarget;
+    private float _searchTimer;
+    private const float SEARCH_DURATION = 2.5f;
+    private const float PATROL_SPEED_MULT = 0.5f;
+    private const float LOS_CHECK_INTERVAL = 0.2f;
+    private float _losCheckTimer;
+    private bool _hasLoS;
+
+    // Stuck detection
+    private Vector3 _lastPos;
+    private float _stuckTimer;
+    private float _unstuckTimer;
+    private const float STUCK_CHECK_INTERVAL = 0.5f;
+    private const float STUCK_THRESHOLD = 0.1f;  // if moved less than this in 0.5s, stuck
+    private const float UNSTUCK_DURATION = 2f;
+
     private ArenaCharacter player;
     private GameObject modelRoot;
     private Rigidbody rb;
@@ -39,12 +59,14 @@ public class ArenaEnemy : MonoBehaviour
     private float spawnGrace;
     private float bodyHeight;
 
-    // HP bar visuals (world-space quads above head)
+    // HP bar visuals (world-space, Archero style)
     private Transform barRoot;
     private Transform hpBarFill;
+    private Transform hpGhostFill;
     private Transform armorBarFill;
     private Transform hpBarBg;
     private float barWidth;
+    private float _ghostHP;
 
     public bool IsDead => dead;
     public EnemyType Type => type;
@@ -71,6 +93,13 @@ public class ArenaEnemy : MonoBehaviour
         knockbackVel    = Vector3.zero;
         player          = null;
         enemyAnimator   = null;
+        _aiState        = AIState.Chase;
+        _hasLoS         = true;
+        _losCheckTimer  = 0f;
+        _searchTimer    = 0f;
+        _stuckTimer     = 0f;
+        _unstuckTimer   = 0f;
+        _lastPos        = pos;
 
         type               = stats.type;
         transform.position = pos;
@@ -89,6 +118,7 @@ public class ArenaEnemy : MonoBehaviour
 
         currentHP    = maxHP;
         currentArmor = maxArmor;
+        _ghostHP     = maxHP;
 
         // ── Physics -- create once, update properties on reuse ─────────────────
         if (rb == null)
@@ -175,7 +205,7 @@ public class ArenaEnemy : MonoBehaviour
         if (modelRoot != null)
             StartCoroutine(DamageFlash());
 
-        FloatingText.Spawn(transform.position + Vector3.up * 1f, "-" + (dmg > 0 ? dmg : 0), Color.white, 0.8f);
+        FloatingText.Spawn(transform.position + Vector3.up * 1.2f, "-" + (dmg > 0 ? dmg : 0), new Color(1f, 0.25f, 0.2f), 1f);
 
         if (currentHP <= 0)
             Die();
@@ -270,6 +300,7 @@ public class ArenaEnemy : MonoBehaviour
         if (spawnGrace > 0) { spawnGrace -= Time.deltaTime; return; }
         if (contactCooldown > 0) contactCooldown -= Time.deltaTime;
         if (slowTimer > 0) slowTimer -= Time.deltaTime;
+        attackTimer -= Time.deltaTime;
 
         // Knockback
         if (knockbackTimer > 0)
@@ -283,42 +314,246 @@ public class ArenaEnemy : MonoBehaviour
         if (player == null || player.IsDead)
         {
             player = FindAnyObjectByType<ArenaCharacter>();
-            if (player == null) return;
+            if (player == null) { StopMoving(); return; }
         }
 
         Vector3 toPlayer = player.transform.position - transform.position;
         toPlayer.y = 0;
-        float dist       = toPlayer.magnitude;
+        float dist = toPlayer.magnitude;
         Vector3 dirToPlayer = dist > 0.01f ? toPlayer / dist : Vector3.forward;
 
-        bool isMoving = dist > attackRange * 0.8f;
-        if (isMoving)
+        // Periodic LoS check (not every frame)
+        _losCheckTimer -= Time.deltaTime;
+        if (_losCheckTimer <= 0)
         {
-            float spd = moveSpeed;
-            if (slowTimer > 0) spd *= (1f - slowAmount);
-            rb.linearVelocity = new Vector3(dirToPlayer.x * spd, 0, dirToPlayer.z * spd);
-        }
-        else
-        {
-            rb.linearVelocity = new Vector3(0, 0, 0);
+            _losCheckTimer = LOS_CHECK_INTERVAL;
+            _hasLoS = LineOfSight.Check(transform.position, player.transform.position);
+            if (_hasLoS)
+                _lastKnownPlayerPos = player.transform.position;
         }
 
-        if (enemyAnimator != null)
-            enemyAnimator.SetFloat("Speed", isMoving ? 1f : 0f);
-
-        if (modelRoot != null && dist > 0.1f)
+        // ── Stuck detection (during Chase) ──
+        if (_aiState == AIState.Chase)
         {
-            float angle = Mathf.Atan2(dirToPlayer.x, dirToPlayer.z) * Mathf.Rad2Deg;
-            modelRoot.transform.rotation = Quaternion.Euler(0, angle, 0);
+            _stuckTimer += Time.deltaTime;
+            if (_stuckTimer >= STUCK_CHECK_INTERVAL)
+            {
+                float moved = Vector3.Distance(transform.position, _lastPos);
+                _lastPos = transform.position;
+                _stuckTimer = 0f;
+
+                if (moved < STUCK_THRESHOLD)
+                {
+                    // Stuck! Pick random point and go there
+                    PickPatrolTarget();
+                    _unstuckTimer = UNSTUCK_DURATION;
+                    _aiState = AIState.Unstuck;
+                }
+            }
         }
 
-        attackTimer -= Time.deltaTime;
+        // ── State machine ──
+        switch (_aiState)
+        {
+            case AIState.Chase:
+                UpdateChase(dist, dirToPlayer);
+                break;
+            case AIState.Attack:
+                UpdateAttack(dist, dirToPlayer);
+                break;
+            case AIState.Search:
+                UpdateSearch();
+                break;
+            case AIState.Patrol:
+                UpdatePatrol();
+                break;
+            case AIState.Unstuck:
+                UpdateUnstuck(dist, dirToPlayer);
+                break;
+        }
+    }
+
+    private void UpdateChase(float dist, Vector3 dirToPlayer)
+    {
+        if (!_hasLoS)
+        {
+            // Lost sight — go to last known position
+            _searchTimer = SEARCH_DURATION;
+            _aiState = AIState.Search;
+            return;
+        }
+
         if (dist <= attackRange && attackTimer <= 0)
+        {
+            _aiState = AIState.Attack;
+            UpdateAttack(dist, dirToPlayer);
+            return;
+        }
+
+        // Move toward player
+        MoveToward(dirToPlayer, moveSpeed);
+        FaceDirection(dirToPlayer);
+    }
+
+    private void UpdateAttack(float dist, Vector3 dirToPlayer)
+    {
+        if (!_hasLoS)
+        {
+            _searchTimer = SEARCH_DURATION;
+            _aiState = AIState.Search;
+            StopMoving();
+            return;
+        }
+
+        if (dist > attackRange)
+        {
+            _aiState = AIState.Chase;
+            return;
+        }
+
+        // Stop and attack
+        StopMoving();
+        FaceDirection(dirToPlayer);
+
+        if (attackTimer <= 0)
         {
             attackTimer = attackCooldown;
             if (enemyAnimator != null) enemyAnimator.SetTrigger("Attack");
             Attack(dirToPlayer);
         }
+    }
+
+    private void UpdateSearch()
+    {
+        // LoS regained → chase
+        if (_hasLoS)
+        {
+            _aiState = AIState.Chase;
+            return;
+        }
+
+        // Move toward last known position
+        Vector3 toTarget = _lastKnownPlayerPos - transform.position;
+        toTarget.y = 0;
+        float dist = toTarget.magnitude;
+
+        if (dist > 0.5f)
+        {
+            Vector3 dir = toTarget / dist;
+            MoveToward(dir, moveSpeed * PATROL_SPEED_MULT);
+            FaceDirection(dir);
+        }
+        else
+        {
+            // Arrived at last known pos, wait then patrol
+            StopMoving();
+            _searchTimer -= Time.deltaTime;
+            if (_searchTimer <= 0)
+            {
+                PickPatrolTarget();
+                _aiState = AIState.Patrol;
+            }
+        }
+    }
+
+    private void UpdatePatrol()
+    {
+        // LoS regained → chase
+        if (_hasLoS)
+        {
+            _aiState = AIState.Chase;
+            return;
+        }
+
+        Vector3 toTarget = _patrolTarget - transform.position;
+        toTarget.y = 0;
+        float dist = toTarget.magnitude;
+
+        if (dist > 0.5f)
+        {
+            Vector3 dir = toTarget / dist;
+            MoveToward(dir, moveSpeed * PATROL_SPEED_MULT);
+            FaceDirection(dir);
+        }
+        else
+        {
+            // Reached patrol point, pick a new one
+            PickPatrolTarget();
+        }
+    }
+
+    private void UpdateUnstuck(float distToPlayer, Vector3 dirToPlayer)
+    {
+        _unstuckTimer -= Time.deltaTime;
+
+        // If we can see the player and path is clear, go back to chase
+        if (_hasLoS && _unstuckTimer < UNSTUCK_DURATION * 0.5f)
+        {
+            _aiState = AIState.Chase;
+            _lastPos = transform.position;
+            return;
+        }
+
+        // Walk toward random patrol target
+        Vector3 toTarget = _patrolTarget - transform.position;
+        toTarget.y = 0;
+        float dist = toTarget.magnitude;
+
+        if (dist > 0.5f)
+        {
+            Vector3 dir = toTarget / dist;
+            MoveToward(dir, moveSpeed * 0.7f);
+            FaceDirection(dir);
+        }
+        else
+        {
+            // Reached random point, pick new one or go chase
+            if (_unstuckTimer <= 0)
+            {
+                _aiState = AIState.Chase;
+                _lastPos = transform.position;
+            }
+            else
+            {
+                PickPatrolTarget();
+            }
+        }
+    }
+
+    private void MoveToward(Vector3 dir, float speed)
+    {
+        if (slowTimer > 0) speed *= (1f - slowAmount);
+        rb.linearVelocity = new Vector3(dir.x * speed, 0, dir.z * speed);
+        if (enemyAnimator != null)
+            enemyAnimator.SetFloat("Speed", 1f);
+    }
+
+    private void StopMoving()
+    {
+        if (rb != null)
+            rb.linearVelocity = Vector3.zero;
+        if (enemyAnimator != null)
+            enemyAnimator.SetFloat("Speed", 0f);
+    }
+
+    private void FaceDirection(Vector3 dir)
+    {
+        if (modelRoot != null && dir.sqrMagnitude > 0.01f)
+        {
+            // Use LookRotation instead of Euler to avoid gimbal drift
+            modelRoot.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+        }
+    }
+
+    private void PickPatrolTarget()
+    {
+        // Random point within arena bounds
+        float halfW = 4.5f;
+        float halfD = 15f;
+        _patrolTarget = new Vector3(
+            Random.Range(-halfW, halfW),
+            0,
+            Random.Range(-halfD, halfD));
     }
 
     private void Attack(Vector3 dir)
@@ -384,36 +619,75 @@ public class ArenaEnemy : MonoBehaviour
 
     private void CreateHealthBar()
     {
-        float barHeight = 0.06f;
-        float yPos      = bodyHeight + 0.35f;
+        float hpH      = 0.085f;
+        float armorH   = 0.04f;
+        float outlineW = 0.012f;
+        float gap      = 0.005f;
+        float yPos     = bodyHeight + 0.75f;
+        float bw       = Mathf.Max(barWidth, 0.6f);
 
         barRoot = new GameObject("BarRoot").transform;
         barRoot.SetParent(transform, false);
         barRoot.localPosition = new Vector3(0, yPos, 0);
 
-        hpBarBg   = CreateBarQuad(barRoot, "HPBarBG",  barWidth,          barHeight,           new Color(0.15f, 0.15f, 0.15f));
-        hpBarFill = CreateBarQuad(barRoot, "HPFill",   barWidth - 0.02f,  barHeight - 0.01f,   new Color(0.9f,  0.2f,  0.15f));
-        hpBarFill.localPosition = new Vector3(0, 0, -0.005f);
+        // ── HP Bar ──
+        // Outline (black)
+        CreateBarQuad(barRoot, "HPOutline", bw + outlineW, hpH + outlineW, new Color(0, 0, 0, 0.9f), 0);
 
+        // Background (dark)
+        hpBarBg = CreateBarQuad(barRoot, "HPBarBG", bw, hpH, new Color(0.18f, 0.18f, 0.18f, 0.95f), 1);
+
+        // Ghost fill (white damage trail)
+        hpGhostFill = CreateBarQuad(barRoot, "HPGhost", bw - 0.01f, hpH - 0.01f, new Color(1f, 1f, 1f, 0.5f), 2);
+        hpGhostFill.localPosition = new Vector3(0, 0, -0.003f);
+
+        // HP fill (red/orange)
+        hpBarFill = CreateBarQuad(barRoot, "HPFill", bw - 0.01f, hpH - 0.01f, new Color(0.95f, 0.3f, 0.15f), 3);
+        hpBarFill.localPosition = new Vector3(0, 0, -0.006f);
+
+        // ── Armor Bar (below HP) ──
         if (maxArmor > 0)
         {
-            armorBarFill = CreateBarQuad(barRoot, "ArmorFill", barWidth - 0.02f, barHeight * 0.6f, new Color(0.3f, 0.6f, 1f));
-            armorBarFill.localPosition = new Vector3(0, barHeight * 0.6f, -0.005f);
+            float armorY = -(hpH * 0.5f + armorH * 0.5f + gap);
+
+            CreateBarQuad(barRoot, "ArmorOutline", bw + outlineW, armorH + outlineW * 0.7f, new Color(0, 0, 0, 0.8f), 0)
+                .localPosition = new Vector3(0, armorY, 0);
+
+            CreateBarQuad(barRoot, "ArmorBG", bw, armorH, new Color(0.1f, 0.1f, 0.2f, 0.9f), 1)
+                .localPosition = new Vector3(0, armorY, 0);
+
+            armorBarFill = CreateBarQuad(barRoot, "ArmorFill", bw - 0.01f, armorH - 0.008f, new Color(0.35f, 0.55f, 0.95f), 3);
+            armorBarFill.localPosition = new Vector3(0, armorY, -0.005f);
         }
     }
 
-    private Transform CreateBarQuad(Transform parent, string barName, float w, float h, Color color)
+    private static Material _barMaterial;
+
+    private static Material GetBarMaterial()
+    {
+        if (_barMaterial != null) return _barMaterial;
+        _barMaterial = new Material(Shader.Find("Sprites/Default"));
+        return _barMaterial;
+    }
+
+    private Transform CreateBarQuad(Transform parent, string barName, float w, float h, Color color, int sortOrder = 1)
     {
         var obj = GameObject.CreatePrimitive(PrimitiveType.Quad);
         obj.name = barName;
         obj.transform.SetParent(parent, false);
+        obj.transform.localPosition = Vector3.zero;
         obj.transform.localScale = new Vector3(w, h, 1f);
-        var c = obj.GetComponent<Collider>();
-        if (c != null) { c.enabled = false; Destroy(c); }
-        var rend = obj.GetComponent<Renderer>();
-        var mat  = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+
+        var col = obj.GetComponent<Collider>();
+        if (col != null) { col.enabled = false; Destroy(col); }
+
+        var rend = obj.GetComponent<MeshRenderer>();
+        var mat = new Material(GetBarMaterial());
         mat.color = color;
+        mat.renderQueue = 3000 + sortOrder;
         rend.material = mat;
+        rend.sortingOrder = sortOrder;
+
         return obj.transform;
     }
 
@@ -424,27 +698,45 @@ public class ArenaEnemy : MonoBehaviour
         Camera cam = Camera.main;
         if (cam != null) barRoot.rotation = cam.transform.rotation;
 
+        float bw = Mathf.Max(barWidth, 0.6f);
+        float fullW = bw - 0.012f;
+        float hpH = 0.085f;
+        float armorH = 0.04f;
+
+        // Ghost bar: lerp toward actual HP
+        if (_ghostHP > currentHP)
+            _ghostHP = Mathf.Lerp(_ghostHP, currentHP, Time.deltaTime * 3f);
+        else
+            _ghostHP = currentHP;
+
         if (hpBarFill != null && maxHP > 0)
         {
             float ratio = Mathf.Clamp01((float)currentHP / maxHP);
-            float fullW = barWidth - 0.02f;
-            hpBarFill.localScale    = new Vector3(fullW * ratio, hpBarFill.localScale.y, 1f);
-            hpBarFill.localPosition = new Vector3(-fullW * (1f - ratio) * 0.5f, 0, -0.005f);
+            hpBarFill.localScale    = new Vector3(fullW * ratio, hpH - 0.01f, 1f);
+            hpBarFill.localPosition = new Vector3(-fullW * (1f - ratio) * 0.5f, 0, -0.006f);
 
             Color barColor;
-            if      (ratio > 0.6f) barColor = Color.Lerp(new Color(1f, 0.9f, 0.1f), new Color(0.2f, 0.9f, 0.2f), (ratio - 0.6f) / 0.4f);
-            else if (ratio > 0.3f) barColor = Color.Lerp(new Color(1f, 0.3f, 0.1f), new Color(1f,   0.9f, 0.1f), (ratio - 0.3f) / 0.3f);
-            else                   barColor = new Color(0.9f, 0.15f, 0.1f);
-            hpBarFill.GetComponent<Renderer>().material.color = barColor;
+            if      (ratio > 0.6f) barColor = new Color(0.95f, 0.3f, 0.15f);
+            else if (ratio > 0.3f) barColor = Color.Lerp(new Color(0.95f, 0.15f, 0.1f), new Color(0.95f, 0.3f, 0.15f), (ratio - 0.3f) / 0.3f);
+            else                   barColor = new Color(0.85f, 0.1f, 0.08f);
+            var rend = hpBarFill.GetComponent<MeshRenderer>();
+            if (rend != null) rend.material.color = barColor;
+        }
+
+        // Ghost fill (white damage trail)
+        if (hpGhostFill != null && maxHP > 0)
+        {
+            float ghostRatio = Mathf.Clamp01(_ghostHP / maxHP);
+            hpGhostFill.localScale    = new Vector3(fullW * ghostRatio, hpH - 0.01f, 1f);
+            hpGhostFill.localPosition = new Vector3(-fullW * (1f - ghostRatio) * 0.5f, 0, -0.003f);
         }
 
         if (armorBarFill != null && maxArmor > 0)
         {
             float ratio = Mathf.Clamp01((float)currentArmor / maxArmor);
-            float fullW = barWidth - 0.02f;
-            float barH  = 0.06f;
-            armorBarFill.localScale    = new Vector3(fullW * ratio, armorBarFill.localScale.y, 1f);
-            armorBarFill.localPosition = new Vector3(-fullW * (1f - ratio) * 0.5f, barH * 0.6f, -0.005f);
+            float armorY = -(hpH * 0.5f + armorH * 0.5f + 0.005f);
+            armorBarFill.localScale    = new Vector3(fullW * ratio, armorH - 0.008f, 1f);
+            armorBarFill.localPosition = new Vector3(-fullW * (1f - ratio) * 0.5f, armorY, -0.005f);
             if (ratio <= 0) armorBarFill.gameObject.SetActive(false);
         }
     }
@@ -467,6 +759,7 @@ public class ArenaEnemy : MonoBehaviour
                 var model = ModelManager.SpawnModel(enemyModel.prefab, modelRoot.transform, stats.modelScale);
                 if (model != null)
                 {
+
                     var anim = model.GetComponentInChildren<Animator>();
                     if (anim != null)
                     {
@@ -478,7 +771,33 @@ public class ArenaEnemy : MonoBehaviour
                             else Destroy(anim);
                         }
                         if (anim != null && anim.runtimeAnimatorController != null)
+                        {
+                            anim.applyRootMotion = false;
                             enemyAnimator = anim;
+                        }
+
+                        // Attach weapons to hands
+                        Debug.Log($"[ArenaEnemy] {stats.modelId}: anim={anim != null}, isHuman={anim?.isHuman}, rightWeapon='{stats.rightHandWeapon}', leftWeapon='{stats.leftHandWeapon}'");
+                        if (anim != null && anim.isHuman)
+                        {
+                            AttachEnemyWeapon(anim, HumanBodyBones.RightHand, stats.rightHandWeapon);
+                            AttachEnemyWeapon(anim, HumanBodyBones.LeftHand, stats.leftHandWeapon);
+                        }
+                        else if (anim != null)
+                        {
+                            // Generic rig — try to find hand bone by name
+                            var rightHand = FindChildRecursive(anim.transform, "RightHand")
+                                         ?? FindChildRecursive(anim.transform, "mixamorig:RightHand")
+                                         ?? FindChildRecursive(anim.transform, "Hand_R")
+                                         ?? FindChildRecursive(anim.transform, "hand_r");
+                            var leftHand = FindChildRecursive(anim.transform, "LeftHand")
+                                        ?? FindChildRecursive(anim.transform, "mixamorig:LeftHand")
+                                        ?? FindChildRecursive(anim.transform, "Hand_L")
+                                        ?? FindChildRecursive(anim.transform, "hand_l");
+                            Debug.Log($"[ArenaEnemy] Generic rig fallback: rightHand={rightHand?.name ?? "null"}, leftHand={leftHand?.name ?? "null"}");
+                            AttachWeaponToTransform(rightHand, stats.rightHandWeapon);
+                            AttachWeaponToTransform(leftHand, stats.leftHandWeapon);
+                        }
                     }
                     return;
                 }
@@ -532,6 +851,69 @@ public class ArenaEnemy : MonoBehaviour
         MakePart(modelRoot, "Trim", PrimitiveType.Cube,
             new Vector3(0, stats.bodyHeight * 0.7f, 0),
             new Vector3(stats.bodyWidth + 0.04f, 0.04f, stats.bodyWidth * 0.72f), stats.trimColor);
+    }
+
+    private static Transform FindChildRecursive(Transform parent, string name)
+    {
+        foreach (Transform child in parent)
+        {
+            if (child.name == name) return child;
+            var found = FindChildRecursive(child, name);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private void AttachWeaponToTransform(Transform bone, string weaponName)
+    {
+        if (bone == null || string.IsNullOrEmpty(weaponName)) return;
+
+        var prefab = Resources.Load<GameObject>($"Models/Enemies/{weaponName}");
+        if (prefab == null) { Debug.LogWarning($"[ArenaEnemy] Weapon not found: Models/Enemies/{weaponName}"); return; }
+
+        var weapon = Instantiate(prefab, bone);
+        weapon.name = weaponName;
+        weapon.transform.localPosition = Vector3.zero;
+        weapon.transform.localRotation = Quaternion.identity;
+        weapon.transform.localScale = Vector3.one;
+
+        foreach (var col in weapon.GetComponentsInChildren<Collider>()) { col.enabled = false; Destroy(col); }
+        foreach (var rb2 in weapon.GetComponentsInChildren<Rigidbody>()) Destroy(rb2);
+    }
+
+    private void AttachEnemyWeapon(Animator anim, HumanBodyBones bone, string weaponName)
+    {
+        if (string.IsNullOrEmpty(weaponName)) return;
+
+        var prefab = Resources.Load<GameObject>($"Models/Enemies/{weaponName}");
+        if (prefab == null)
+        {
+            Debug.LogWarning($"[ArenaEnemy] Weapon prefab not found: Models/Enemies/{weaponName}");
+            return;
+        }
+
+        Transform hand = anim.GetBoneTransform(bone);
+        if (hand == null)
+        {
+            Debug.LogWarning($"[ArenaEnemy] Bone {bone} not found on {anim.gameObject.name}");
+            return;
+        }
+
+        var weapon = Instantiate(prefab, hand);
+        weapon.name = weaponName;
+        weapon.transform.localPosition = Vector3.zero;
+        weapon.transform.localRotation = Quaternion.identity;
+        weapon.transform.localScale = Vector3.one;
+
+        foreach (var col in weapon.GetComponentsInChildren<Collider>())
+        {
+            col.enabled = false;
+            Destroy(col);
+        }
+        foreach (var rb2 in weapon.GetComponentsInChildren<Rigidbody>())
+            Destroy(rb2);
+
+        Debug.Log($"[ArenaEnemy] Attached '{weaponName}' to {bone} of {anim.gameObject.name}");
     }
 
     private GameObject MakePart(GameObject parent, string partName, PrimitiveType primitiveType,

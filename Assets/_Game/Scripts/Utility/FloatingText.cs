@@ -1,59 +1,75 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 /// <summary>
-/// World-space floating score indicator that rises and fades out.
-/// Uses a scaled cube as a simple visual marker -- no TextMesh dependency.
-/// For actual text, creates a UI element via the canvas.
+/// World-space floating damage/heal text. Pops up, rises, and fades out.
+/// Archero-style: big bold number, scales up then shrinks.
 /// </summary>
 public class FloatingText : MonoBehaviour
 {
-    private float lifetime = 1.2f;
-    private float riseSpeed = 2.5f;
-    private float timer;
-    private Renderer rend;
-    private Color startColor;
+    private float _lifetime = 0.9f;
+    private float _riseSpeed = 1.8f;
+    private float _timer;
+    private TextMesh _textMesh;
+    private Color _startColor;
+    private float _startScale;
 
     public static void Spawn(Vector3 worldPos, string text, Color color, float scale = 1f)
     {
-        // Create a simple rising colored cube as visual indicator
-        GameObject obj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        obj.name = "ScorePopup";
-        obj.transform.position = worldPos + Vector3.up * 0.5f;
-        obj.transform.localScale = Vector3.one * 0.2f * scale;
-        var fc = obj.GetComponent<Collider>(); if (fc != null) { fc.enabled = false; Destroy(fc); }
+        var obj = new GameObject("DmgText");
+        obj.transform.position = worldPos + Vector3.up * 0.3f;
 
-        var rend = obj.GetComponent<Renderer>();
-        var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        mat.color = color;
-        rend.material = mat;
+        // Random horizontal offset so multiple hits don't overlap
+        obj.transform.position += new Vector3(Random.Range(-0.15f, 0.15f), 0, 0);
+
+        var tm = obj.AddComponent<TextMesh>();
+        tm.text = text;
+        tm.color = color;
+        tm.fontSize = 48;
+        tm.characterSize = 0.08f * scale;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.fontStyle = FontStyle.Bold;
+
+        // Ensure it renders on top
+        var rend = obj.GetComponent<MeshRenderer>();
+        rend.sortingOrder = 100;
 
         var ft = obj.AddComponent<FloatingText>();
-        ft.rend = rend;
-        ft.startColor = color;
-
-        // Also create screen-space text via UIPopup
-        if (UIPopupManager.Instance != null)
-            UIPopupManager.Instance.ShowPopup(worldPos, text, color, scale);
+        ft._textMesh = tm;
+        ft._startColor = color;
+        ft._startScale = 0.08f * scale;
     }
 
     private void Update()
     {
-        timer += Time.deltaTime;
-        if (timer >= lifetime) { Destroy(gameObject); return; }
+        _timer += Time.deltaTime;
+        if (_timer >= _lifetime) { Destroy(gameObject); return; }
 
-        float t = timer / lifetime;
-        transform.position += Vector3.up * riseSpeed * Time.deltaTime;
+        float t = _timer / _lifetime;
 
-        // Scale: pop in then shrink
-        float s = t < 0.15f ? Mathf.Lerp(0.5f, 1.3f, t / 0.15f) : Mathf.Lerp(1.3f, 0f, (t - 0.15f) / 0.85f);
-        transform.localScale = Vector3.one * 0.2f * s;
+        // Rise upward
+        transform.position += Vector3.up * _riseSpeed * Time.deltaTime;
 
-        // Fade
-        if (rend != null)
-        {
-            Color c = startColor;
-            c.a = 1f - t;
-            rend.material.color = c;
-        }
+        // Billboard: face camera
+        Camera cam = Camera.main;
+        if (cam != null)
+            transform.rotation = cam.transform.rotation;
+
+        // Scale: pop big then shrink
+        float s;
+        if (t < 0.1f)
+            s = Mathf.Lerp(0.6f, 1.4f, t / 0.1f); // pop in
+        else if (t < 0.3f)
+            s = Mathf.Lerp(1.4f, 1.0f, (t - 0.1f) / 0.2f); // settle
+        else
+            s = Mathf.Lerp(1.0f, 0.3f, (t - 0.3f) / 0.7f); // shrink out
+
+        _textMesh.characterSize = _startScale * s;
+
+        // Fade out in last 40%
+        Color c = _startColor;
+        if (t > 0.6f)
+            c.a = 1f - (t - 0.6f) / 0.4f;
+        _textMesh.color = c;
     }
 }

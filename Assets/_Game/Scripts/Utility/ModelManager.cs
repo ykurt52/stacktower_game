@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Events;
 using System.Collections.Generic;
 
 /// <summary>
@@ -8,6 +9,8 @@ using System.Collections.Generic;
 public class ModelManager : MonoBehaviour
 {
     public static ModelManager Instance { get; private set; }
+
+    public UnityEvent OnCharacterChanged;
 
     public List<CharacterModel> PlayerModels { get; private set; } = new List<CharacterModel>();
     public List<CharacterModel> EnemyModels { get; private set; } = new List<CharacterModel>();
@@ -33,32 +36,59 @@ public class ModelManager : MonoBehaviour
         public float damageMult = 1f;     // damage multiplier
     }
 
-    // Character definitions: Beach(worst) → Swat(best)
+    // Character definitions: Rogue(weakest) → Knight(strongest)
     private static readonly Dictionary<string, (int cost, CharacterStats stats)> characterDefs = new()
     {
-        ["Beach"] = (0, new CharacterStats { speedMult = 1f, hpMult = 1f, attackSpeedMult = 1f, damageMult = 1f }),
-        ["Medieval"] = (500, new CharacterStats { speedMult = 1.05f, hpMult = 1.1f, attackSpeedMult = 1.05f, damageMult = 1.05f }),
-        ["King"] = (1500, new CharacterStats { speedMult = 1.1f, hpMult = 1.2f, attackSpeedMult = 1.1f, damageMult = 1.1f }),
-        ["Spacesuit"] = (3000, new CharacterStats { speedMult = 1.15f, hpMult = 1.3f, attackSpeedMult = 1.15f, damageMult = 1.15f }),
-        ["Suit"] = (6000, new CharacterStats { speedMult = 1.2f, hpMult = 1.4f, attackSpeedMult = 1.2f, damageMult = 1.2f }),
-        ["Swat"] = (12000, new CharacterStats { speedMult = 1.3f, hpMult = 1.5f, attackSpeedMult = 1.3f, damageMult = 1.3f }),
+        ["Rogue"]     = (0,    new CharacterStats { speedMult = 1.15f, hpMult = 0.9f,  attackSpeedMult = 1.1f,  damageMult = 0.95f }),
+        ["Ranger"]    = (500,  new CharacterStats { speedMult = 1.05f, hpMult = 1.0f,  attackSpeedMult = 1.15f, damageMult = 1.0f }),
+        ["Barbarian"] = (1500, new CharacterStats { speedMult = 0.95f, hpMult = 1.2f,  attackSpeedMult = 0.9f,  damageMult = 1.15f }),
+        ["Mage"]      = (3000, new CharacterStats { speedMult = 1.0f,  hpMult = 0.85f, attackSpeedMult = 1.0f,  damageMult = 1.25f }),
+        ["Knight"]    = (5000, new CharacterStats { speedMult = 0.85f, hpMult = 1.4f,  attackSpeedMult = 0.85f, damageMult = 1.1f }),
     };
+    // Default weapon per character (Resources path under Models/Weapons/)
+    private static readonly Dictionary<string, string> defaultWeapons = new()
+    {
+        ["Rogue"]     = "dagger",
+        ["Ranger"]    = "bow",
+        ["Barbarian"] = "axe_1handed",
+        ["Mage"]      = "wand",
+        ["Knight"]    = "sword_2handed",
+    };
+
     private static readonly int[] enemyCosts = { 0 }; // enemies aren't purchasable
 
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        MigrateOldCharacters();
         LoadAll();
+    }
+
+    private void MigrateOldCharacters()
+    {
+        // Clean up old Synty character keys
+        string[] oldIds = { "beach", "medieval", "king", "spacesuit", "suit", "swat" };
+        foreach (var id in oldIds)
+        {
+            PlayerPrefs.DeleteKey("char_" + id);
+        }
+        string equipped = PlayerPrefs.GetString("equipped_character", "");
+        if (System.Array.Exists(oldIds, x => x == equipped))
+        {
+            PlayerPrefs.DeleteKey("equipped_character");
+        }
+        PlayerPrefs.Save();
     }
 
     private void LoadAll()
     {
-        // Load player characters
+        // Load player characters (skip animation-only FBX files)
         var playerPrefabs = Resources.LoadAll<GameObject>("Models/MainCharacter");
         foreach (var prefab in playerPrefabs)
         {
             string name = prefab.name;
+            if (name.StartsWith("Rig_")) continue; // skip animation FBX files
             var def = characterDefs.ContainsKey(name) ? characterDefs[name]
                 : (cost: 9999, stats: new CharacterStats());
 
@@ -141,6 +171,7 @@ public class ModelManager : MonoBehaviour
         if (!OwnsCharacter(id)) return;
         PlayerPrefs.SetString("equipped_character", id);
         PlayerPrefs.Save();
+        OnCharacterChanged?.Invoke();
     }
 
     /// <summary>Get a random enemy model. Returns null if none loaded.</summary>
@@ -161,7 +192,7 @@ public class ModelManager : MonoBehaviour
     /// Spawn a model as child of parent. Cleans up colliders, rigidbodies.
     /// Keeps Animator intact for animation support.
     /// </summary>
-    public static GameObject SpawnModel(GameObject prefab, Transform parent, float scale = 0.75f)
+    public static GameObject SpawnModel(GameObject prefab, Transform parent, float scale = 0.45f)
     {
         if (prefab == null) return null;
 
@@ -182,6 +213,67 @@ public class ModelManager : MonoBehaviour
             Destroy(rb);
 
         return instance;
+    }
+
+    /// <summary>
+    /// Attach the default weapon model to the character's right hand bone.
+    /// Call after SpawnModel. Uses Humanoid Avatar's RightHand bone.
+    /// </summary>
+    public static GameObject AttachDefaultWeapon(GameObject characterInstance, string characterName)
+    {
+        if (characterInstance == null || string.IsNullOrEmpty(characterName)) return null;
+
+        // Find default weapon for this character
+        if (!defaultWeapons.ContainsKey(characterName)) return null;
+        string weaponName = defaultWeapons[characterName];
+
+        // Load weapon prefab
+        var weaponPrefab = Resources.Load<GameObject>($"Models/Weapons/{weaponName}");
+        if (weaponPrefab == null)
+        {
+            Debug.LogWarning($"[ModelManager] Weapon not found: Models/Weapons/{weaponName}");
+            return null;
+        }
+
+        // Find right hand bone via Animator (Humanoid rig)
+        var animator = characterInstance.GetComponentInChildren<Animator>();
+        if (animator == null || !animator.isHuman)
+        {
+            Debug.LogWarning("[ModelManager] No Humanoid Animator found for weapon attach");
+            return null;
+        }
+
+        Transform handBone = animator.GetBoneTransform(HumanBodyBones.RightHand);
+        if (handBone == null)
+        {
+            Debug.LogWarning("[ModelManager] RightHand bone not found");
+            return null;
+        }
+
+        // Instantiate weapon as child of hand bone
+        var weapon = Instantiate(weaponPrefab, handBone);
+        weapon.name = "Weapon_" + weaponName;
+        weapon.transform.localPosition = Vector3.zero;
+        weapon.transform.localRotation = Quaternion.identity;
+        weapon.transform.localScale = Vector3.one;
+
+        // Remove colliders/rigidbodies from weapon
+        foreach (var col in weapon.GetComponentsInChildren<Collider>())
+        {
+            col.enabled = false;
+            Destroy(col);
+        }
+        foreach (var rb in weapon.GetComponentsInChildren<Rigidbody>())
+            Destroy(rb);
+
+        Debug.Log($"[ModelManager] Attached weapon '{weaponName}' to {characterName}'s right hand");
+        return weapon;
+    }
+
+    /// <summary>Get the default weapon name for a character.</summary>
+    public static string GetDefaultWeaponName(string characterName)
+    {
+        return defaultWeapons.ContainsKey(characterName) ? defaultWeapons[characterName] : null;
     }
 
     private static string FormatName(string rawName)
