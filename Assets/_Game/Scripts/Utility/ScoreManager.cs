@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
@@ -92,7 +92,7 @@ public class ScoreManager : MonoBehaviour
         }
         else
         {
-            // Single step — reset combo
+            // Single step -- reset combo
             CurrentCombo = 0;
             CurrentScore++;
             OnScoreChanged?.Invoke(CurrentScore);
@@ -243,7 +243,7 @@ public class ScoreManager : MonoBehaviour
 
         if (storedHash != expectedHash)
         {
-            // Tampered — reset to 0
+            // Tampered -- reset to 0
             PlayerPrefs.DeleteKey(valueKey);
             PlayerPrefs.DeleteKey(hashKey);
             PlayerPrefs.Save();
@@ -256,7 +256,7 @@ public class ScoreManager : MonoBehaviour
     private string ComputeHash(string key, int value)
     {
         string raw = Salt + key + value.ToString() + Salt;
-        // Simple hash — not cryptographic but deters casual edits
+        // Simple hash -- not cryptographic but deters casual edits
         int hash = 0;
         for (int i = 0; i < raw.Length; i++)
         {

@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Singleton that plays procedurally generated game audio.
-/// No external audio files needed — all sounds are synthesized at runtime.
+/// No external audio files needed -- all sounds are synthesized at runtime.
 /// </summary>
 public class AudioManager : MonoBehaviour
 {

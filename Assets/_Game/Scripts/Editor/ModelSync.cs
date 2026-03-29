@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
 using System.IO;
@@ -40,7 +40,7 @@ public class ModelSync
             string fileName = Path.GetFileName(srcPath);
             string dstPath = Path.Combine(dstFolder, fileName);
 
-            // Use AssetDatabase to copy — preserves import settings and .meta
+            // Use AssetDatabase to copy -- preserves import settings and .meta
             string srcUnity = srcPath.Replace("\\", "/");
             string dstUnity = dstPath.Replace("\\", "/");
 

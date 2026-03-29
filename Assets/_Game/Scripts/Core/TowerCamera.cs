@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Camera that follows the character upward through the tower.
@@ -97,7 +97,7 @@ public class TowerCamera : MonoBehaviour
         var oldFill = GameObject.Find("TowerFillLight");
         if (oldFill != null) Destroy(oldFill);
 
-        // Main directional light — warm sunlight from top-left
+        // Main directional light -- warm sunlight from top-left
         var lightObj = new GameObject("TowerDirectionalLight");
         lightObj.transform.rotation = Quaternion.Euler(45, -30, 0);
         var light = lightObj.AddComponent<Light>();
@@ -107,7 +107,7 @@ public class TowerCamera : MonoBehaviour
         light.shadows = LightShadows.Soft;
         light.shadowStrength = 0.4f;
 
-        // Fill light — cool from opposite side for depth
+        // Fill light -- cool from opposite side for depth
         var fillObj = new GameObject("TowerFillLight");
         fillObj.transform.rotation = Quaternion.Euler(30, 150, 0);
         var fill = fillObj.AddComponent<Light>();
@@ -169,7 +169,7 @@ public class TowerCamera : MonoBehaviour
             return;
         }
 
-        // Follow character — use highest landed Y so camera doesn't drop back down
+        // Follow character -- use highest landed Y so camera doesn't drop back down
         float landedTargetY = character.HighestLandedY + followLeadY;
 
         // During spring pad launch, also track character's live position
@@ -232,7 +232,7 @@ public class TowerCamera : MonoBehaviour
         if (laserRoot != null) Destroy(laserRoot);
 
         laserRoot = new GameObject("DeathLaser");
-        // Don't parent to camera — we position it manually in world space each frame
+        // Don't parent to camera -- we position it manually in world space each frame
 
         float laserWidth = 20f;
 
@@ -292,7 +292,7 @@ public class TowerCamera : MonoBehaviour
         // Position laser in world space
         laserRoot.transform.position = new Vector3(0, laserY, 0);
 
-        // Pulse animation — subtle scale breathing
+        // Pulse animation -- subtle scale breathing
         laserPulseTimer += Time.deltaTime * 3f;
         float pulse = 1f + Mathf.Sin(laserPulseTimer) * 0.15f;
         laserRoot.transform.localScale = new Vector3(1f, pulse, 1f);

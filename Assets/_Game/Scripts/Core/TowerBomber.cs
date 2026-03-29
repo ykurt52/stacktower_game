@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Bomber enemy — walks on a platform, drops bombs when character is nearby.
+/// Bomber enemy -- walks on a platform, drops bombs when character is nearby.
 /// Bomb explodes after a delay with area damage.
 /// Contact damage: 1. Bomb damage: 2.
 /// </summary>

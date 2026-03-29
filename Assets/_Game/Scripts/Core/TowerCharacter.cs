@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Tower climbing character. Tap to jump — no auto-jump.
+/// Tower climbing character. Tap to jump -- no auto-jump.
 /// Tap left side = jump left, tap right side = jump right.
 /// Only jumps when grounded on a platform.
 /// </summary>
@@ -176,7 +176,7 @@ public class TowerCharacter : MonoBehaviour
     }
 
     /// <summary>
-    /// Spring pad launch — massive upward boost.
+    /// Spring pad launch -- massive upward boost.
     /// </summary>
     public void LaunchUp(float force, int bonusPoints)
     {
@@ -289,7 +289,7 @@ public class TowerCharacter : MonoBehaviour
 
         if (weaponRange <= 0)
         {
-            // Melee: sword swing — damage enemies in front
+            // Melee: sword swing -- damage enemies in front
             SwordSwing();
         }
         else
@@ -524,7 +524,7 @@ public class TowerCharacter : MonoBehaviour
         damageImmunityTimer = 0.8f; // Brief invincibility after taking damage
 
 
-        // Bounce away from source — knockback scales with damage
+        // Bounce away from source -- knockback scales with damage
         float knockY = 3f + damage * 1.2f;   // dmg1=4.2, dmg2=5.4, dmg3=6.6
         float knockX = 1.5f + damage * 0.8f;  // dmg1=2.3, dmg2=3.1, dmg3=3.9
         velocity.y = Mathf.Min(knockY, 8f);
@@ -549,7 +549,7 @@ public class TowerCharacter : MonoBehaviour
         if (currentHP <= 0)
         {
             currentHP = 0;
-            // Don't Kill() yet — GameManager may offer revive
+            // Don't Kill() yet -- GameManager may offer revive
             // Store death info for later if revive is declined
             pendingDeathType = source.GetComponent<TowerObstacle>() != null
                 ? DeathType.Flung : DeathType.HitByEnemy;
@@ -567,7 +567,7 @@ public class TowerCharacter : MonoBehaviour
 
 
     /// <summary>
-    /// Set pending death state — character is paused, waiting for revive decision.
+    /// Set pending death state -- character is paused, waiting for revive decision.
     /// </summary>
     public void SetPendingDeath(DeathType type)
     {
@@ -577,7 +577,7 @@ public class TowerCharacter : MonoBehaviour
     }
 
     /// <summary>
-    /// Execute pending death — called when revive is declined.
+    /// Execute pending death -- called when revive is declined.
     /// </summary>
     public void ExecutePendingDeath()
     {
@@ -613,7 +613,7 @@ public class TowerCharacter : MonoBehaviour
         }
         else if (type == DeathType.WallSplat)
         {
-            // Splat against camera — zoom in and flatten
+            // Splat against camera -- zoom in and flatten
             velocity = Vector3.zero;
         }
         else
@@ -625,7 +625,7 @@ public class TowerCharacter : MonoBehaviour
     }
 
     /// <summary>
-    /// Big jump upward — to reach the next platform above.
+    /// Big jump upward -- to reach the next platform above.
     /// </summary>
     public bool TryJumpUp()
     {
@@ -665,7 +665,7 @@ public class TowerCharacter : MonoBehaviour
     }
 
     /// <summary>
-    /// Small hop left or right — stays on the same platform level.
+    /// Small hop left or right -- stays on the same platform level.
     /// If airborne, does an air dash instead (once per jump).
     /// Direction: -1 = left, 1 = right.
     /// </summary>
@@ -675,7 +675,7 @@ public class TowerCharacter : MonoBehaviour
 
         if (isGrounded)
         {
-            // Ground hop — boost on ice
+            // Ground hop -- boost on ice
             isGrounded = false;
             velocity.y = hopForce;
             velocity.x = direction * horizontalHopForce + iceSlideVelocity;
@@ -744,7 +744,7 @@ public class TowerCharacter : MonoBehaviour
             // Check if platform is still under us
             if (!HasPlatformBelow())
             {
-                // Platform moved away — start falling
+                // Platform moved away -- start falling
                 isGrounded = false;
                 currentPlatform = null;
                 velocity = Vector3.zero;
@@ -791,7 +791,7 @@ public class TowerCharacter : MonoBehaviour
             }
         }
 
-        // Weapon cooldown (runs always — grounded or airborne)
+        // Weapon cooldown (runs always -- grounded or airborne)
         if (weaponCooldown > 0)
             weaponCooldown -= Time.deltaTime;
 
@@ -878,7 +878,7 @@ public class TowerCharacter : MonoBehaviour
         if (pos.x <= xMin || pos.x >= xMax) velocity.x = 0;
         transform.position = pos;
 
-        // Knockback timer — prevents instant re-landing after being hit
+        // Knockback timer -- prevents instant re-landing after being hit
         if (knockbackTimer > 0)
             knockbackTimer -= Time.deltaTime;
 
@@ -894,7 +894,7 @@ public class TowerCharacter : MonoBehaviour
             if (dashTrailTimer <= 0) isDashing = false;
         }
 
-        // Jump trail — subtle dots while ascending
+        // Jump trail -- subtle dots while ascending
         if (!isGrounded && velocity.y > 2f)
         {
             jumpTrailTimer -= Time.deltaTime;
@@ -1008,7 +1008,7 @@ public class TowerCharacter : MonoBehaviour
 
     private bool HasPlatformBelow()
     {
-        // Box check under feet — more reliable than thin raycast
+        // Box check under feet -- more reliable than thin raycast
         Vector3 checkCenter = transform.position + Vector3.down * 0.05f;
         Vector3 halfExtents = new Vector3(0.15f, 0.15f, 0.4f);
         Collider[] hits = Physics.OverlapBox(checkCenter, halfExtents, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
@@ -1134,14 +1134,14 @@ public class TowerCharacter : MonoBehaviour
         {
             if (shieldGuard.IsShieldedHit(transform.position))
             {
-                // Bounced off shield — no damage, just push back
+                // Bounced off shield -- no damage, just push back
                 velocity.y = 4f;
                 velocity.x = (transform.position.x > shieldGuard.transform.position.x) ? 4f : -4f;
                 isGrounded = false;
             }
             else
             {
-                // Hit from behind or side — guard dies
+                // Hit from behind or side -- guard dies
                 shieldGuard.Die();
                 velocity.y = 5f; // Bounce up
                 if (ScoreManager.Instance != null)
@@ -1161,7 +1161,7 @@ public class TowerCharacter : MonoBehaviour
             }
             else
             {
-                // Side/front contact — take damage
+                // Side/front contact -- take damage
                 TakeDamage(boss.Damage, other);
             }
         }
@@ -1233,7 +1233,7 @@ public class TowerCharacter : MonoBehaviour
             }
             else
             {
-                // Landed on lower platform (or timed out) — fall flat
+                // Landed on lower platform (or timed out) -- fall flat
                 FallFlatAnimation();
             }
         }
@@ -1285,7 +1285,7 @@ public class TowerCharacter : MonoBehaviour
         pos.z = Mathf.Lerp(pos.z, targetZ, 8f * Time.deltaTime);
         transform.position = pos;
 
-        // Flatten against "screen" — scale Z to near zero, stretch X/Y
+        // Flatten against "screen" -- scale Z to near zero, stretch X/Y
         float t = Mathf.Clamp01(deathTimer * 3f);
         float flatZ = Mathf.Lerp(1f, 0.05f, t);
         float stretchXY = Mathf.Lerp(1f, 2.5f, t);

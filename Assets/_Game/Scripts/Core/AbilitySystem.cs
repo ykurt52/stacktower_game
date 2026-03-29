@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
@@ -63,18 +63,18 @@ public class AbilitySystem : MonoBehaviour
     {
         allAbilities = new List<Ability>
         {
-            new Ability { id = AbilityId.MultiShot, name = "Çoklu Atış", description = "+1 mermi", color = new Color(1f, 0.8f, 0.2f), maxStacks = 2 },
-            new Ability { id = AbilityId.Pierce, name = "Delici Atış", description = "Mermi düşmandan geçer", color = new Color(0.4f, 1f, 0.8f), maxStacks = 3 },
+            new Ability { id = AbilityId.MultiShot, name = "Coklu Atis", description = "+1 mermi", color = new Color(1f, 0.8f, 0.2f), maxStacks = 2 },
+            new Ability { id = AbilityId.Pierce, name = "Delici Atis", description = "Mermi dusmandan gecer", color = new Color(0.4f, 1f, 0.8f), maxStacks = 3 },
             new Ability { id = AbilityId.BounceWall, name = "Sekme", description = "Mermi duvardan seker", color = new Color(0.6f, 0.6f, 1f), maxStacks = 2 },
-            new Ability { id = AbilityId.AttackSpeedUp, name = "Hızlı Atış", description = "Atış hızı +15%", color = new Color(1f, 0.5f, 0.2f), maxStacks = 5 },
-            new Ability { id = AbilityId.AttackDamageUp, name = "Güçlü Atış", description = "Hasar +20%", color = new Color(1f, 0.2f, 0.2f), maxStacks = 5 },
-            new Ability { id = AbilityId.MoveSpeedUp, name = "Hız", description = "Hareket hızı +10%", color = new Color(0.3f, 0.9f, 0.3f), maxStacks = 3 },
-            new Ability { id = AbilityId.HPBoost, name = "Can Artışı", description = "Maks can +1", color = new Color(1f, 0.4f, 0.5f), maxStacks = 5 },
-            new Ability { id = AbilityId.Heal, name = "İyileş", description = "1 can yenile", color = new Color(0.3f, 1f, 0.5f), maxStacks = 99 },
-            new Ability { id = AbilityId.RearArrow, name = "Arka Ok", description = "Arkaya da ateş et", color = new Color(0.8f, 0.4f, 1f), maxStacks = 1 },
-            new Ability { id = AbilityId.DiagonalArrow, name = "Çapraz Ok", description = "45° çapraz mermiler", color = new Color(1f, 0.6f, 0.8f), maxStacks = 1 },
-            new Ability { id = AbilityId.SlowProjectile, name = "Dondurucu", description = "Mermiler yavaşlatır", color = new Color(0.4f, 0.8f, 1f), maxStacks = 2 },
-            new Ability { id = AbilityId.MagnetRange, name = "Mıknatıs", description = "XP toplama menzili +", color = new Color(0.9f, 0.9f, 0.3f), maxStacks = 3 },
+            new Ability { id = AbilityId.AttackSpeedUp, name = "Hizli Atis", description = "Atis hizi +15%", color = new Color(1f, 0.5f, 0.2f), maxStacks = 5 },
+            new Ability { id = AbilityId.AttackDamageUp, name = "Guclu Atis", description = "Hasar +20%", color = new Color(1f, 0.2f, 0.2f), maxStacks = 5 },
+            new Ability { id = AbilityId.MoveSpeedUp, name = "Hiz", description = "Hareket hizi +10%", color = new Color(0.3f, 0.9f, 0.3f), maxStacks = 3 },
+            new Ability { id = AbilityId.HPBoost, name = "Can Artisi", description = "Maks can +1", color = new Color(1f, 0.4f, 0.5f), maxStacks = 5 },
+            new Ability { id = AbilityId.Heal, name = "Iyiles", description = "1 can yenile", color = new Color(0.3f, 1f, 0.5f), maxStacks = 99 },
+            new Ability { id = AbilityId.RearArrow, name = "Arka Ok", description = "Arkaya da ates et", color = new Color(0.8f, 0.4f, 1f), maxStacks = 1 },
+            new Ability { id = AbilityId.DiagonalArrow, name = "Capraz Ok", description = "45° capraz mermiler", color = new Color(1f, 0.6f, 0.8f), maxStacks = 1 },
+            new Ability { id = AbilityId.SlowProjectile, name = "Dondurucu", description = "Mermiler yavaslatir", color = new Color(0.4f, 0.8f, 1f), maxStacks = 2 },
+            new Ability { id = AbilityId.MagnetRange, name = "Miknatis", description = "XP toplama menzili +", color = new Color(0.9f, 0.9f, 0.3f), maxStacks = 3 },
         };
 
         foreach (var a in allAbilities)

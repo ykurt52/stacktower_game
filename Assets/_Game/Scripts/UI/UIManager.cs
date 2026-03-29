@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -80,6 +80,7 @@ public class UIManager : MonoBehaviour
     private GameObject dailyRewardPanel;
     private bool dailyRewardShown;
 
+
     private void Start()
     {
         // Fallback: find panels by name if SerializeField references are missing
@@ -111,7 +112,7 @@ public class UIManager : MonoBehaviour
 
         ShowMenuPanel();
 
-        // Top HUD layout — Row 1 (top): pause left, wave center, coin right
+        // Top HUD layout -- Row 1 (top): pause left, wave center, coin right
         // Pause button occupies ~0-12% left, so wave starts at 12%
         RepositionToBottom(floorText, 0.14f, 0.96f, 0.55f, 1.0f);           // Wave: center-left
         RepositionToBottom(currentScoreText, 0.35f, 0.96f, 0.65f, 1.0f);    // Score: center
@@ -254,14 +255,18 @@ public class UIManager : MonoBehaviour
         if (BonusCodeManager.Instance == null || bonusCodeInput == null) return;
 
         string code = bonusCodeInput.text;
-        int result = BonusCodeManager.Instance.TryRedeem(code);
+        int result = BonusCodeManager.Instance.TryRedeem(code, out int coins, out int stones);
 
         if (bonusCodeResult != null)
         {
-            if (result > 0)
+            if (result == 1)
             {
-                bonusCodeResult.text = "+" + result + " COIN!";
+                bonusCodeResult.text = $"+{coins} altin  +{stones} tas!";
                 bonusCodeResult.color = new Color(0.3f, 1f, 0.4f);
+
+                // Refresh HUD currencies
+                if (MainMenuManager.Instance != null)
+                    MainMenuManager.Instance.RefreshCurrencies();
             }
             else if (result == -1)
             {
@@ -357,6 +362,8 @@ public class UIManager : MonoBehaviour
     {
         if (dailyRewardPanel != null) dailyRewardPanel.SetActive(false);
         if (menuPanel != null) menuPanel.SetActive(true);
+        // Refresh the main menu coin display so the newly added coins are visible
+        if (MainMenuManager.Instance != null) MainMenuManager.Instance.RefreshCurrencies();
     }
 
     public void OnDailyRewardAdButton()
@@ -481,7 +488,7 @@ public class UIManager : MonoBehaviour
             }
             else
             {
-                // No shield purchased — gray bar, no fill
+                // No shield purchased -- gray bar, no fill
                 uiShieldBarFill.fillAmount = 0f;
                 if (uiShieldBarBg != null)
                     uiShieldBarBg.color = new Color(0.2f, 0.2f, 0.2f, 0.85f);
@@ -543,12 +550,9 @@ public class UIManager : MonoBehaviour
     {
         ShowMenuPanel();
 
-        // Refresh Archero-style menu currencies & XP bar
+        // Refresh Archero-style menu currencies
         if (MainMenuManager.Instance != null)
-        {
             MainMenuManager.Instance.RefreshCurrencies();
-            MainMenuManager.Instance.RefreshXpBar();
-        }
     }
 
     private void OnScoreChanged(int score) => UpdateScoreText(score);
@@ -608,7 +612,7 @@ public class UIManager : MonoBehaviour
         {
             var js = gamePanel.GetComponentInChildren<VirtualJoystick>(true);
             if (js != null)
-                Debug.Log("[UIManager] VirtualJoystick found but Instance was null — forcing activation");
+                Debug.Log("[UIManager] VirtualJoystick found but Instance was null -- forcing activation");
         }
     }
 
@@ -658,7 +662,7 @@ public class UIManager : MonoBehaviour
 
     private void CreateRevivePanel()
     {
-        // Create as ROOT object — not child of UIManager canvas, so CanvasScaler works properly
+        // Create as ROOT object -- not child of UIManager canvas, so CanvasScaler works properly
         revivePanel = new GameObject("RevivePanel");
         var canvas = revivePanel.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -686,6 +690,7 @@ public class UIManager : MonoBehaviour
         iconTmp.enableAutoSizing = true;
         iconTmp.fontSizeMin = 60;
         iconTmp.fontSizeMax = 120;
+        iconTmp.characterSpacing = 4f;
 
         // Title - OLDUN! big and centered
         var title = CreateUIElement(revivePanel.transform, "Title",
@@ -699,6 +704,7 @@ public class UIManager : MonoBehaviour
         titleTmp.enableAutoSizing = true;
         titleTmp.fontSizeMin = 40;
         titleTmp.fontSizeMax = 80;
+        titleTmp.characterSpacing = 4f;
 
         // Subtitle
         var subtitle = CreateUIElement(revivePanel.transform, "Subtitle",
@@ -711,6 +717,7 @@ public class UIManager : MonoBehaviour
         subtitleTmp.enableAutoSizing = true;
         subtitleTmp.fontSizeMin = 16;
         subtitleTmp.fontSizeMax = 28;
+        subtitleTmp.characterSpacing = 4f;
 
         // Countdown - big yellow
         var countdown = CreateUIElement(revivePanel.transform, "Countdown",
@@ -740,6 +747,7 @@ public class UIManager : MonoBehaviour
         adTmp.enableAutoSizing = true;
         adTmp.fontSizeMin = 18;
         adTmp.fontSizeMax = 36;
+        adTmp.characterSpacing = 4f;
 
         // Coin revive button - gold/yellow
         var coinBtn = CreateUIElement(revivePanel.transform, "ReviveCoinBtn",
@@ -759,6 +767,7 @@ public class UIManager : MonoBehaviour
         coinTmp.enableAutoSizing = true;
         coinTmp.fontSizeMin = 16;
         coinTmp.fontSizeMax = 34;
+        coinTmp.characterSpacing = 4f;
 
         // Skip button
         var skipBtn = CreateUIElement(revivePanel.transform, "SkipBtn",
@@ -777,6 +786,7 @@ public class UIManager : MonoBehaviour
         skipTmp.enableAutoSizing = true;
         skipTmp.fontSizeMin = 14;
         skipTmp.fontSizeMax = 28;
+        skipTmp.characterSpacing = 4f;
     }
 
     // ── Game Over Reward Buttons ──
@@ -829,6 +839,7 @@ public class UIManager : MonoBehaviour
         tmp.enableAutoSizing = true;
         tmp.fontSizeMin = 10;
         tmp.fontSizeMax = 18;
+        tmp.characterSpacing = 4f;
 
         return btnObj;
     }
@@ -895,28 +906,21 @@ public class UIManager : MonoBehaviour
 
     private void ShowDailyRewardPanel(int day, int reward)
     {
-        if (dailyRewardPanel == null)
-            CreateDailyRewardPanel();
-
-        // Update texts
-        var dayText = dailyRewardPanel.transform.Find("DayText")?.GetComponent<TextMeshProUGUI>();
-        var rewardText = dailyRewardPanel.transform.Find("RewardText")?.GetComponent<TextMeshProUGUI>();
-
-        if (dayText != null) dayText.text = "GUN " + day + " ODUL!";
-        if (rewardText != null)
+        // Always recreate so the 7-day grid reflects the correct streak state
+        if (dailyRewardPanel != null)
         {
-            string extra = (day % 3 == 0) ? " + 1 TAS" : "";
-            rewardText.text = "+" + reward + " COIN" + extra;
+            Destroy(dailyRewardPanel);
+            dailyRewardPanel = null;
         }
-
+        CreateDailyRewardPanel(day, reward);
         dailyRewardPanel.SetActive(true);
         menuPanel.SetActive(false);
     }
 
-    private void CreateDailyRewardPanel()
+    // ── Archero-style daily reward panel ──
+    private void CreateDailyRewardPanel(int currentDay, int currentReward)
     {
         dailyRewardPanel = new GameObject("DailyRewardPanel");
-        // Don't parent to UIManager — Canvas needs to be a root or under another Canvas
         var canvas = dailyRewardPanel.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 110;
@@ -926,81 +930,224 @@ public class UIManager : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
         dailyRewardPanel.AddComponent<GraphicRaycaster>();
 
-        // Background
-        var bg = CreateUIElement(dailyRewardPanel.transform, "BG", Vector2.zero, Vector2.one);
-        var bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(0.05f, 0.05f, 0.15f, 0.95f);
+        // ── Full-screen dark overlay ──
+        var overlay = CreateUIElement(dailyRewardPanel.transform, "Overlay", Vector2.zero, Vector2.one);
+        overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
 
-        // Title
-        var title = CreateUIElement(dailyRewardPanel.transform, "Title",
-            new Vector2(0.1f, 0.7f), new Vector2(0.9f, 0.85f));
+        // ── Floating card (centered, not full-screen) ──
+        // Card occupies 92% width, 75% height, vertically centered
+        var card = CreateUIElement(dailyRewardPanel.transform, "Card",
+            new Vector2(0.04f, 0.13f), new Vector2(0.96f, 0.89f));
+
+        // Card background -- deep navy
+        card.AddComponent<Image>().color = new Color(0.07f, 0.09f, 0.21f, 1f);
+
+        // Card top gold border strip
+        var topBorder = CreateUIElement(card.transform, "TopBorder",
+            new Vector2(0f, 0.987f), new Vector2(1f, 1f));
+        topBorder.AddComponent<Image>().color = new Color(1f, 0.76f, 0.05f, 1f);
+
+        // Card bottom gold border strip
+        var botBorder = CreateUIElement(card.transform, "BotBorder",
+            new Vector2(0f, 0f), new Vector2(1f, 0.013f));
+        botBorder.AddComponent<Image>().color = new Color(1f, 0.76f, 0.05f, 1f);
+
+        // ── Title section ──
+        var lineL = CreateUIElement(card.transform, "LineL",
+            new Vector2(0.03f, 0.935f), new Vector2(0.24f, 0.948f));
+        lineL.AddComponent<Image>().color = new Color(1f, 0.76f, 0.05f, 0.85f);
+
+        var title = CreateUIElement(card.transform, "Title",
+            new Vector2(0.24f, 0.925f), new Vector2(0.76f, 0.977f));
         var titleTmp = title.AddComponent<TextMeshProUGUI>();
         titleTmp.text = "GUNLUK ODUL";
-        titleTmp.fontSize = 40;
-        titleTmp.color = new Color(1f, 0.85f, 0.2f);
+        titleTmp.fontSize = 38;
+        titleTmp.color = new Color(1f, 0.83f, 0.08f);
         titleTmp.fontStyle = FontStyles.Bold;
         titleTmp.alignment = TextAlignmentOptions.Center;
         titleTmp.enableAutoSizing = true;
-        titleTmp.fontSizeMin = 20;
-        titleTmp.fontSizeMax = 40;
+        titleTmp.fontSizeMin = 18; titleTmp.fontSizeMax = 38;
+        titleTmp.characterSpacing = 4f;
 
-        // Day text
-        var dayObj = CreateUIElement(dailyRewardPanel.transform, "DayText",
-            new Vector2(0.1f, 0.55f), new Vector2(0.9f, 0.7f));
-        var dayTmp = dayObj.AddComponent<TextMeshProUGUI>();
-        dayTmp.text = "GUN 1 ODUL!";
-        dayTmp.fontSize = 32;
-        dayTmp.color = Color.white;
-        dayTmp.fontStyle = FontStyles.Bold;
-        dayTmp.alignment = TextAlignmentOptions.Center;
+        var lineR = CreateUIElement(card.transform, "LineR",
+            new Vector2(0.76f, 0.935f), new Vector2(0.97f, 0.948f));
+        lineR.AddComponent<Image>().color = new Color(1f, 0.76f, 0.05f, 0.85f);
 
-        // Reward text
-        var rewardObj = CreateUIElement(dailyRewardPanel.transform, "RewardText",
-            new Vector2(0.1f, 0.42f), new Vector2(0.9f, 0.55f));
-        var rewardTmp = rewardObj.AddComponent<TextMeshProUGUI>();
-        rewardTmp.text = "+10 COIN";
-        rewardTmp.fontSize = 36;
-        rewardTmp.color = new Color(0.3f, 1f, 0.5f);
-        rewardTmp.fontStyle = FontStyles.Bold;
-        rewardTmp.alignment = TextAlignmentOptions.Center;
+        // Divider below title
+        var div1 = CreateUIElement(card.transform, "Div1",
+            new Vector2(0.04f, 0.916f), new Vector2(0.96f, 0.920f));
+        div1.AddComponent<Image>().color = new Color(1f, 0.76f, 0.05f, 0.30f);
 
-        // Collect button
-        var collectBtn = CreateUIElement(dailyRewardPanel.transform, "CollectBtn",
-            new Vector2(0.15f, 0.22f), new Vector2(0.85f, 0.38f));
-        var collectImg = collectBtn.AddComponent<Image>();
-        collectImg.color = new Color(0.15f, 0.75f, 0.3f);
+        // ── 7-Day streak grid ──
+        int[] dayRewards = { 10, 15, 20, 25, 30, 40, 60 };
+        int cycleDay = ((currentDay - 1) % 7) + 1;
+
+        float stripYMin = 0.720f, stripYMax = 0.908f;
+        float startX = 0.025f;
+        float cellGap = 0.007f;
+        float cellW = (0.95f - cellGap * 6f) / 7f; // 0.95 total strip width
+
+        for (int i = 0; i < 7; i++)
+        {
+            int d = i + 1;
+            float xMin = startX + i * (cellW + cellGap);
+            float xMax = xMin + cellW;
+            bool isCurr = (d == cycleDay);
+            bool isPast = (d < cycleDay);
+
+            var cell = CreateUIElement(card.transform, "Day" + d,
+                new Vector2(xMin, stripYMin), new Vector2(xMax, stripYMax));
+
+            // Cell BG
+            Color bgCol = isPast
+                ? new Color(0.06f, 0.07f, 0.14f, 1f)
+                : isCurr ? new Color(0.20f, 0.14f, 0.02f, 1f)
+                : new Color(0.10f, 0.13f, 0.28f, 1f);
+            cell.AddComponent<Image>().color = bgCol;
+
+            // Gold border frame for current day (4 strips)
+            if (isCurr)
+            {
+                Color gold = new Color(1f, 0.80f, 0f, 1f);
+                float b = 0.03f;
+                var bT = CreateUIElement(cell.transform, "BT", new Vector2(0, 1f - b), new Vector2(1f, 1f));
+                bT.AddComponent<Image>().color = gold;
+                var bB = CreateUIElement(cell.transform, "BB", new Vector2(0, 0), new Vector2(1f, b));
+                bB.AddComponent<Image>().color = gold;
+                var bLe = CreateUIElement(cell.transform, "BL", new Vector2(0, b), new Vector2(b * 0.45f, 1f - b));
+                bLe.AddComponent<Image>().color = gold;
+                var bRi = CreateUIElement(cell.transform, "BR", new Vector2(1f - b * 0.45f, b), new Vector2(1f, 1f - b));
+                bRi.AddComponent<Image>().color = gold;
+            }
+
+            // Day label ("G1", "G2" …)
+            var dayLabel = CreateUIElement(cell.transform, "DayLbl",
+                new Vector2(0f, 0.77f), new Vector2(1f, 1f));
+            var dayLblTmp = dayLabel.AddComponent<TextMeshProUGUI>();
+            dayLblTmp.text = "G" + d;
+            dayLblTmp.color = isCurr ? new Color(1f, 0.88f, 0.2f)
+                : isPast ? new Color(0.40f, 0.40f, 0.50f)
+                : new Color(0.70f, 0.70f, 0.88f);
+            dayLblTmp.fontStyle = FontStyles.Bold;
+            dayLblTmp.alignment = TextAlignmentOptions.Center;
+            dayLblTmp.enableAutoSizing = true;
+            dayLblTmp.fontSizeMin = 8; dayLblTmp.fontSizeMax = 20;
+            dayLblTmp.characterSpacing = 4f;
+
+            // Coin icon (outer circle)
+            var coin = CreateUIElement(cell.transform, "Coin",
+                new Vector2(0.12f, 0.33f), new Vector2(0.88f, 0.77f));
+            coin.AddComponent<Image>().color = isPast
+                ? new Color(0.22f, 0.22f, 0.28f)
+                : isCurr ? new Color(1f, 0.74f, 0f)
+                : new Color(0.62f, 0.52f, 0.08f);
+
+            // Coin inner highlight
+            if (!isPast)
+            {
+                var coinIn = CreateUIElement(coin.transform, "Inner",
+                    new Vector2(0.14f, 0.14f), new Vector2(0.86f, 0.86f));
+                coinIn.AddComponent<Image>().color = isCurr
+                    ? new Color(1f, 0.93f, 0.42f)
+                    : new Color(0.74f, 0.63f, 0.12f);
+            }
+
+            // Amount text
+            var amtLabel = CreateUIElement(cell.transform, "Amt",
+                new Vector2(0f, 0.02f), new Vector2(1f, 0.33f));
+            var amtTmp = amtLabel.AddComponent<TextMeshProUGUI>();
+            amtTmp.text = dayRewards[i].ToString();
+            amtTmp.color = isCurr ? Color.white
+                : isPast ? new Color(0.38f, 0.38f, 0.46f)
+                : new Color(0.78f, 0.78f, 0.88f);
+            amtTmp.fontStyle = FontStyles.Bold;
+            amtTmp.alignment = TextAlignmentOptions.Center;
+            amtTmp.enableAutoSizing = true;
+            amtTmp.fontSizeMin = 8; amtTmp.fontSizeMax = 18;
+            amtTmp.characterSpacing = 4f;
+        }
+
+        // ── Main reward display ──
+        // Large coin icon
+        var bigCoin = CreateUIElement(card.transform, "BigCoin",
+            new Vector2(0.36f, 0.500f), new Vector2(0.64f, 0.700f));
+        bigCoin.AddComponent<Image>().color = new Color(1f, 0.74f, 0f);
+        var bigCoinIn = CreateUIElement(bigCoin.transform, "Inner",
+            new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.92f));
+        bigCoinIn.AddComponent<Image>().color = new Color(1f, 0.92f, 0.40f);
+
+        // Reward amount (green, large)
+        string bonusText = (cycleDay % 3 == 0) ? " + 1 TAS" : "";
+        var rewardAmtObj = CreateUIElement(card.transform, "RewardAmt",
+            new Vector2(0.05f, 0.425f), new Vector2(0.95f, 0.492f));
+        var rewardAmtTmp = rewardAmtObj.AddComponent<TextMeshProUGUI>();
+        rewardAmtTmp.text = "+" + currentReward + " COIN" + bonusText;
+        rewardAmtTmp.fontSize = 42;
+        rewardAmtTmp.color = new Color(0.22f, 0.98f, 0.50f);
+        rewardAmtTmp.fontStyle = FontStyles.Bold;
+        rewardAmtTmp.alignment = TextAlignmentOptions.Center;
+        rewardAmtTmp.enableAutoSizing = true;
+        rewardAmtTmp.fontSizeMin = 20; rewardAmtTmp.fontSizeMax = 42;
+        rewardAmtTmp.characterSpacing = 4f;
+
+        // Day subtitle ("GUN 3 ODULU")
+        var daySubObj = CreateUIElement(card.transform, "DaySub",
+            new Vector2(0.05f, 0.375f), new Vector2(0.95f, 0.420f));
+        var daySubTmp = daySubObj.AddComponent<TextMeshProUGUI>();
+        daySubTmp.text = "GUN " + currentDay + " ODULU";
+        daySubTmp.fontSize = 26;
+        daySubTmp.color = new Color(0.70f, 0.70f, 0.88f);
+        daySubTmp.fontStyle = FontStyles.Bold;
+        daySubTmp.alignment = TextAlignmentOptions.Center;
+        daySubTmp.enableAutoSizing = true;
+        daySubTmp.fontSizeMin = 13; daySubTmp.fontSizeMax = 26;
+        daySubTmp.characterSpacing = 4f;
+
+        // Divider
+        var div2 = CreateUIElement(card.transform, "Div2",
+            new Vector2(0.04f, 0.360f), new Vector2(0.96f, 0.364f));
+        div2.AddComponent<Image>().color = new Color(1f, 0.76f, 0.05f, 0.28f);
+
+        // ── TOPLA button (Archero orange) ──
+        var collectBtn = CreateUIElement(card.transform, "CollectBtn",
+            new Vector2(0.10f, 0.222f), new Vector2(0.90f, 0.340f));
+        collectBtn.AddComponent<Image>().color = new Color(0.95f, 0.50f, 0.05f);
         var collectButton = collectBtn.AddComponent<Button>();
         collectButton.onClick.AddListener(OnDailyRewardButton);
 
-        var collectLabel = CreateUIElement(collectBtn.transform, "Label", Vector2.zero, Vector2.one);
-        var collectTmp = collectLabel.AddComponent<TextMeshProUGUI>();
+        // Subtle top highlight for pseudo-gradient
+        var collectHL = CreateUIElement(collectBtn.transform, "HL",
+            new Vector2(0.02f, 0.52f), new Vector2(0.98f, 0.90f));
+        collectHL.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.11f);
+
+        var collectLbl = CreateUIElement(collectBtn.transform, "Lbl", Vector2.zero, Vector2.one);
+        var collectTmp = collectLbl.AddComponent<TextMeshProUGUI>();
         collectTmp.text = "TOPLA";
-        collectTmp.fontSize = 28;
+        collectTmp.fontSize = 34;
         collectTmp.color = Color.white;
         collectTmp.fontStyle = FontStyles.Bold;
         collectTmp.alignment = TextAlignmentOptions.Center;
         collectTmp.enableAutoSizing = true;
-        collectTmp.fontSizeMin = 14;
-        collectTmp.fontSizeMax = 28;
+        collectTmp.fontSizeMin = 16; collectTmp.fontSizeMax = 34;
+        collectTmp.characterSpacing = 4f;
 
-        // Watch ad for 3x button
-        var adBtn = CreateUIElement(dailyRewardPanel.transform, "AdBtn",
-            new Vector2(0.2f, 0.08f), new Vector2(0.8f, 0.2f));
-        var adBtnImg = adBtn.AddComponent<Image>();
-        adBtnImg.color = new Color(0.6f, 0.2f, 0.9f);
+        // ── 3x Ad button (blue) ──
+        var adBtn = CreateUIElement(card.transform, "AdBtn",
+            new Vector2(0.12f, 0.068f), new Vector2(0.88f, 0.200f));
+        adBtn.AddComponent<Image>().color = new Color(0.14f, 0.34f, 0.84f);
         var adButton = adBtn.AddComponent<Button>();
         adButton.onClick.AddListener(OnDailyRewardAdButton);
 
-        var adLabel = CreateUIElement(adBtn.transform, "Label", Vector2.zero, Vector2.one);
-        var adTmp = adLabel.AddComponent<TextMeshProUGUI>();
-        adTmp.text = "REKLAM IZLE = 3X ODUL";
-        adTmp.fontSize = 20;
+        var adLbl = CreateUIElement(adBtn.transform, "Lbl", Vector2.zero, Vector2.one);
+        var adTmp = adLbl.AddComponent<TextMeshProUGUI>();
+        adTmp.text = "\u25B6  REKLAM IZLE = 3X ODUL";
+        adTmp.fontSize = 22;
         adTmp.color = Color.white;
         adTmp.fontStyle = FontStyles.Bold;
         adTmp.alignment = TextAlignmentOptions.Center;
         adTmp.enableAutoSizing = true;
-        adTmp.fontSizeMin = 10;
-        adTmp.fontSizeMax = 20;
+        adTmp.fontSizeMin = 11; adTmp.fontSizeMax = 22;
+        adTmp.characterSpacing = 4f;
     }
 
     // ── Helpers ──
@@ -1071,13 +1218,14 @@ public class UIManager : MonoBehaviour
         lvlRt.anchorMax = new Vector2(0.20f, 0.96f);
         lvlRt.offsetMin = Vector2.zero; lvlRt.offsetMax = Vector2.zero;
         uiLevelText = lvlObj.AddComponent<TextMeshProUGUI>();
-        uiLevelText.fontSize = 22;
+        uiLevelText.fontSize = 30;
         uiLevelText.fontStyle = FontStyles.Bold;
         uiLevelText.color = new Color(0.55f, 0.78f, 0.94f);
         uiLevelText.alignment = TextAlignmentOptions.Left;
         uiLevelText.enableAutoSizing = true;
-        uiLevelText.fontSizeMin = 12;
-        uiLevelText.fontSizeMax = 22;
+        uiLevelText.fontSizeMin = 16;
+        uiLevelText.fontSizeMax = 30;
+        uiLevelText.characterSpacing = 4f;
         uiLevelText.text = "Lv.1";
 
         // ── HP Bar (below XP bar) ──
@@ -1115,13 +1263,14 @@ public class UIManager : MonoBehaviour
         hpTxtRt.anchorMin = Vector2.zero; hpTxtRt.anchorMax = Vector2.one;
         hpTxtRt.offsetMin = Vector2.zero; hpTxtRt.offsetMax = new Vector2(-4, 0);
         uiHpText = hpTxt.AddComponent<TextMeshProUGUI>();
-        uiHpText.fontSize = 16;
+        uiHpText.fontSize = 22;
         uiHpText.fontStyle = FontStyles.Bold;
         uiHpText.color = Color.white;
         uiHpText.alignment = TextAlignmentOptions.Center;
         uiHpText.enableAutoSizing = true;
-        uiHpText.fontSizeMin = 8;
-        uiHpText.fontSizeMax = 16;
+        uiHpText.fontSizeMin = 12;
+        uiHpText.fontSizeMax = 22;
+        uiHpText.characterSpacing = 4f;
         uiHpText.text = "";
 
         // ── Shield Bar (below HP bar, thinner) ──
@@ -1167,15 +1316,16 @@ public class UIManager : MonoBehaviour
         stoneRt.offsetMin = Vector2.zero;
         stoneRt.offsetMax = Vector2.zero;
         stoneHudText = stoneObj.AddComponent<TextMeshProUGUI>();
-        stoneHudText.fontSize = 20;
+        stoneHudText.fontSize = 28;
         stoneHudText.color = new Color(0.62f, 0.72f, 0.95f);
         stoneHudText.fontStyle = FontStyles.Bold;
         stoneHudText.alignment = TextAlignmentOptions.Right;
         stoneHudText.enableAutoSizing = true;
-        stoneHudText.fontSizeMin = 10;
-        stoneHudText.fontSizeMax = 20;
+        stoneHudText.fontSizeMin = 14;
+        stoneHudText.fontSizeMax = 28;
+        stoneHudText.characterSpacing = 4f;
         int stones = ScoreManager.Instance != null ? ScoreManager.Instance.UpgradeStones : 0;
-        stoneHudText.text = "◆ " + stones;
+        stoneHudText.text = "<sprite name=\"diamond\"> " + stones;
 
         // Emerald counter
         var emeraldObj = new GameObject("EmeraldHud");
@@ -1186,15 +1336,16 @@ public class UIManager : MonoBehaviour
         emeraldRt.offsetMin = Vector2.zero;
         emeraldRt.offsetMax = Vector2.zero;
         emeraldHudText = emeraldObj.AddComponent<TextMeshProUGUI>();
-        emeraldHudText.fontSize = 20;
+        emeraldHudText.fontSize = 28;
         emeraldHudText.color = new Color(0.55f, 0.85f, 0.62f);
         emeraldHudText.fontStyle = FontStyles.Bold;
         emeraldHudText.alignment = TextAlignmentOptions.Right;
         emeraldHudText.enableAutoSizing = true;
-        emeraldHudText.fontSizeMin = 10;
-        emeraldHudText.fontSizeMax = 20;
+        emeraldHudText.fontSizeMin = 14;
+        emeraldHudText.fontSizeMax = 28;
+        emeraldHudText.characterSpacing = 4f;
         int emeralds = ScoreManager.Instance != null ? ScoreManager.Instance.Emeralds : 0;
-        emeraldHudText.text = "◆ " + emeralds;
+        emeraldHudText.text = "<sprite name=\"diamond\"> " + emeralds;
     }
 
     private void OnLevelUp(int level)
@@ -1239,6 +1390,7 @@ public class UIManager : MonoBehaviour
         titleTmp.enableAutoSizing = true;
         titleTmp.fontSizeMin = 20;
         titleTmp.fontSizeMax = 40;
+        titleTmp.characterSpacing = 4f;
 
         // Ability cards
         for (int i = 0; i < choices.Count; i++)
@@ -1270,6 +1422,7 @@ public class UIManager : MonoBehaviour
             nameTmp.enableAutoSizing = true;
             nameTmp.fontSizeMin = 14;
             nameTmp.fontSizeMax = 26;
+            nameTmp.characterSpacing = 4f;
 
             // Description
             var descObj = CreateUIElement(card.transform, "Desc",
@@ -1282,6 +1435,7 @@ public class UIManager : MonoBehaviour
             descTmp.enableAutoSizing = true;
             descTmp.fontSizeMin = 10;
             descTmp.fontSizeMax = 20;
+            descTmp.characterSpacing = 4f;
 
             // Button
             var btn = card.AddComponent<Button>();
@@ -1301,12 +1455,12 @@ public class UIManager : MonoBehaviour
 
     private void OnStoneChanged(int count)
     {
-        if (stoneHudText != null) stoneHudText.text = "◆ " + count;
+        if (stoneHudText != null) stoneHudText.text = "<sprite name=\"diamond\"> " + count;
     }
 
     private void OnEmeraldChanged(int count)
     {
-        if (emeraldHudText != null) emeraldHudText.text = "◆ " + count;
+        if (emeraldHudText != null) emeraldHudText.text = "<sprite name=\"diamond\"> " + count;
     }
 
     private void UpdateScoreText(int score)

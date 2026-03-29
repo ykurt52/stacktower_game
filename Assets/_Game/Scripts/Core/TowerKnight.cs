@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Knight enemy — patrols on a platform and attacks with a sword when
+/// Knight enemy -- patrols on a platform and attacks with a sword when
 /// the character is on the same platform (similar Y level).
 /// Contact damage: 1. Sword damage: 2.
 /// </summary>

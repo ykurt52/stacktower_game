@@ -1,9 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
 /// Loads all character and enemy models from Resources/Models/ at runtime.
-/// Drop new FBX files into the Resources folders — no code changes needed.
+/// Drop new FBX files into the Resources folders -- no code changes needed.
 /// </summary>
 public class ModelManager : MonoBehaviour
 {

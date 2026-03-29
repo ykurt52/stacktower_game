@@ -1,0 +1,90 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5abd8db692041364eb6a52d11134ad21, type: 3}
+  m_Name: ArenaWaveConfig
+  m_EditorClassIdentifier: Assembly-CSharp::WaveConfigSO
+  wavePauseDuration: 2.5
+  bossPauseDuration: 3.5
+  spawnInterval: 0.35
+  initialSpawnDelay: 0.2
+  initialWavePause: 1
+  maxEnemiesAlive: 12
+  maxEnemiesPerWave: 25
+  bossWaveInterval: 10
+  baseEnemyCount: 2
+  statScalePerWave: 0.08
+  waveTiers:
+  - fromWave: 1
+    distribution:
+    - type: 0
+      weight: 1
+  - fromWave: 3
+    distribution:
+    - type: 0
+      weight: 0.65
+    - type: 1
+      weight: 0.35
+  - fromWave: 6
+    distribution:
+    - type: 0
+      weight: 0.35
+    - type: 1
+      weight: 0.25
+    - type: 2
+      weight: 0.4
+  - fromWave: 9
+    distribution:
+    - type: 0
+      weight: 0.2
+    - type: 1
+      weight: 0.2
+    - type: 2
+      weight: 0.15
+    - type: 3
+      weight: 0.15
+    - type: 4
+      weight: 0.15
+    - type: 5
+      weight: 0.15
+  - fromWave: 13
+    distribution:
+    - type: 0
+      weight: 0.12
+    - type: 1
+      weight: 0.13
+    - type: 2
+      weight: 0.15
+    - type: 3
+      weight: 0.15
+    - type: 4
+      weight: 0.2
+    - type: 5
+      weight: 0.25
+  pickupStartWave: 2
+  pickupCountSteps:
+  - fromWave: 2
+    count: 1
+  - fromWave: 5
+    count: 2
+  - fromWave: 15
+    count: 3
+  pickupWeights:
+  - type: 0
+    weight: 0.35
+  - type: 3
+    weight: 0.2
+  - type: 1
+    weight: 0.2
+  - type: 2
+    weight: 0.15
+  - type: 4
+    weight: 0.05

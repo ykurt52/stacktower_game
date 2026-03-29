@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Shield Guard enemy — patrols with a shield in front.
+/// Shield Guard enemy -- patrols with a shield in front.
 /// Front contact pushes the character back (no damage).
 /// Back contact or jumping on top deals damage TO the guard and destroys it.
 /// If the character touches without jumping on top or hitting from behind, they bounce off.

@@ -51,6 +51,7 @@ public class UIPopupManager : MonoBehaviour
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.fontStyle = FontStyles.Bold;
         tmp.raycastTarget = false;
+        tmp.characterSpacing = 4f;
 
         obj.AddComponent<UIPopup>();
     }

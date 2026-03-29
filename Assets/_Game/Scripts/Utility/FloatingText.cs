@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// World-space floating score indicator that rises and fades out.
-/// Uses a scaled cube as a simple visual marker — no TextMesh dependency.
+/// Uses a scaled cube as a simple visual marker -- no TextMesh dependency.
 /// For actual text, creates a UI element via the canvas.
 /// </summary>
 public class FloatingText : MonoBehaviour

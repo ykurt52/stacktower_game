@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Bat enemy — flies in a sine wave pattern between platforms.
+/// Bat enemy -- flies in a sine wave pattern between platforms.
 /// Dives toward the character when close enough.
 /// Contact damage: 1.
 /// </summary>

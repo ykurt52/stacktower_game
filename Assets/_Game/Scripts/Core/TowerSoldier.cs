@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Soldier enemy — stands on a platform and shoots bullets at the character periodically.
+/// Soldier enemy -- stands on a platform and shoots bullets at the character periodically.
 /// Contact damage: 1. Bullet damage: 1.
 /// </summary>
 public class TowerSoldier : MonoBehaviour

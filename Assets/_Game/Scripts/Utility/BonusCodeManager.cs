@@ -11,11 +11,12 @@ public class BonusCodeManager : MonoBehaviour
     {
         public string code;
         public int coins;
+        public int stones;
     }
 
     private static readonly CodeDef[] codes =
     {
-        new CodeDef { code = "WLCM99", coins = 99999 },
+        new CodeDef { code = "WLCM99", coins = 99999, stones = 9999 },
     };
 
     private const string UsedPrefix = "bc_used_";
@@ -31,11 +32,14 @@ public class BonusCodeManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Try to redeem a code.
-    /// Returns positive coin amount if successful, -1 if already used, 0 if invalid.
+    /// Try to redeem a code. Awards coins and stones on success.
+    /// Returns: 1 = success, -1 = already used, 0 = invalid.
     /// </summary>
-    public int TryRedeem(string input)
+    public int TryRedeem(string input, out int coinsAwarded, out int stonesAwarded)
     {
+        coinsAwarded = 0;
+        stonesAwarded = 0;
+
         if (string.IsNullOrEmpty(input)) return 0;
 
         string normalized = input.Trim().ToUpperInvariant();
@@ -52,9 +56,14 @@ public class BonusCodeManager : MonoBehaviour
                 PlayerPrefs.Save();
 
                 if (ScoreManager.Instance != null)
+                {
                     ScoreManager.Instance.AddCoins(def.coins);
+                    ScoreManager.Instance.AddStones(def.stones);
+                }
 
-                return def.coins;
+                coinsAwarded  = def.coins;
+                stonesAwarded = def.stones;
+                return 1;
             }
         }
 

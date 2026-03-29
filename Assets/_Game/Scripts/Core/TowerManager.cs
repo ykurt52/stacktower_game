@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -269,7 +269,7 @@ public class TowerManager : MonoBehaviour
                 }
                 else
                 {
-                    // Don't Kill yet — GameManager may offer revive
+                    // Don't Kill yet -- GameManager may offer revive
                     character.SetPendingDeath(TowerCharacter.DeathType.FellOff);
                     GameManager.Instance.TriggerGameOver();
                 }
@@ -300,7 +300,7 @@ public class TowerManager : MonoBehaviour
         // Extra lives from skill
         extraLivesRemaining = ShopManager.Instance != null ? ShopManager.Instance.GetExtraLives() : 0;
 
-        // Starting platform — slightly wider than normal
+        // Starting platform -- slightly wider than normal
         SpawnPlatform(0, 0, 2.5f, TowerPlatform.PlatformType.Normal, GetZone());
         var startingPlatform = spawnedObjects[spawnedObjects.Count - 1].GetComponent<TowerPlatform>();
 
@@ -325,7 +325,7 @@ public class TowerManager : MonoBehaviour
                 character.EquipWeapon(weaponInfo);
         }
 
-        // Shop consumable: headstart — start from floor 5
+        // Shop consumable: headstart -- start from floor 5
         if (ShopManager.Instance != null && ShopManager.Instance.ConsumeHeadstart())
         {
             float headstartY = 5 * platformSpacing + platformHeight + 0.01f;
@@ -365,7 +365,7 @@ public class TowerManager : MonoBehaviour
         if (safeY < towerCamera.LaserY + 2f)
             safeY = towerCamera.LaserY + 4f;
 
-        // Always create a fresh wide platform — don't rely on existing ones
+        // Always create a fresh wide platform -- don't rely on existing ones
         Zone zone = GetZone();
         SpawnPlatform(safeY, 0f, 3.0f, TowerPlatform.PlatformType.Normal, zone);
 
@@ -562,7 +562,7 @@ public class TowerManager : MonoBehaviour
         // ── Max 2 consecutive hazards, then force a clean platform ──
         bool forceClean = isEarlyFloor || consecutiveHazards >= 2;
 
-        // Platform type — early floors always Normal
+        // Platform type -- early floors always Normal
         TowerPlatform.PlatformType platType = TowerPlatform.PlatformType.Normal;
         float moveSpeed = 0;
         float moveLeft = 0, moveRight = 0;
@@ -749,7 +749,7 @@ public class TowerManager : MonoBehaviour
         platObj.transform.position = new Vector3(x, y, 0);
         platObj.transform.localScale = new Vector3(actualWidth, actualHeight, actualDepth);
 
-        // ALL platforms use Unlit — no lighting color shifts
+        // ALL platforms use Unlit -- no lighting color shifts
         Renderer rend = platObj.GetComponent<Renderer>();
         colorIndex++;
 
@@ -758,16 +758,16 @@ public class TowerManager : MonoBehaviour
         switch (type)
         {
             case TowerPlatform.PlatformType.Moving:
-                c = new Color(0.85f, 0.75f, 0.25f); // Sarımtrak (yellowish)
+                c = new Color(0.85f, 0.75f, 0.25f); // Sarimtrak (yellowish)
                 break;
             case TowerPlatform.PlatformType.Breakable:
-                c = new Color(0.8f, 0.15f, 0.15f); // Kırmızı (red)
+                c = new Color(0.8f, 0.15f, 0.15f); // Kirmizi (red)
                 break;
             case TowerPlatform.PlatformType.Icy:
-                c = new Color(0.6f, 0.85f, 0.95f); // Açık buz mavisi
+                c = new Color(0.6f, 0.85f, 0.95f); // Acik buz mavisi
                 break;
             default:
-                c = new Color(0.1f, 0.35f, 0.15f); // Koyu yeşil (dark green)
+                c = new Color(0.1f, 0.35f, 0.15f); // Koyu yesil (dark green)
                 break;
         }
 

@@ -38,6 +38,7 @@ public class TouchZone : MonoBehaviour, IPointerDownHandler
             hintLabel.gameObject.SetActive(true);
             hintLabel.alpha = 1f;
             hintLabel.fontSize = action == ZoneAction.JumpUp ? 28f : 24f;
+            hintLabel.characterSpacing = 4f;
         }
     }
 

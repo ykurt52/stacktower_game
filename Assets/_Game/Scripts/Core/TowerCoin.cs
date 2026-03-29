@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Collectible coin that spins and gives bonus points.
@@ -19,7 +19,7 @@ public class TowerCoin : MonoBehaviour
         transform.position = position;
         baseY = position.y;
 
-        // Trigger collider — radius increased by coin range skill
+        // Trigger collider -- radius increased by coin range skill
         float rangeMultiplier = ShopManager.Instance != null ? ShopManager.Instance.GetCoinRangeMultiplier() : 1f;
         SphereCollider col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;

@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Boss enemy — large enemy that appears every ~25 floors.
+/// Boss enemy -- large enemy that appears every ~25 floors.
 /// Patrols on a wide platform. Character must jump on top to deal hits.
 /// Takes multiple hits to defeat. Awards coins on death.
 /// Contact damage: 3. Has HP.

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -15,8 +15,6 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI gemText;
     [SerializeField] private TextMeshProUGUI goldText;
     [SerializeField] private TextMeshProUGUI energyText;
-    [SerializeField] private TextMeshProUGUI levelText;
-    [SerializeField] private Image xpBarFill;
 
     [Header("Center Panels")]
     [SerializeField] private GameObject battlePanel;
@@ -32,14 +30,9 @@ public class MainMenuManager : MonoBehaviour
     [Header("Battle Panel")]
     [SerializeField] private TextMeshProUGUI stageInfoText;
 
-    [Header("Settings")]
-    [SerializeField] private float xpLerpSpeed = 4f;
-
     public static MainMenuManager Instance { get; private set; }
 
     private MenuTab currentTab = MenuTab.Battle;
-    private float targetXpFill;
-    private float currentXpFill;
     private GameObject[] allPanels;
 
     // Tab colors (pastel)
@@ -59,17 +52,6 @@ public class MainMenuManager : MonoBehaviour
         allPanels = new[] { shopPanel, equipmentPanel, battlePanel, talentPanel, settingsPanel };
         SwitchTab(MenuTab.Battle);
         RefreshCurrencies();
-        RefreshXpBar(true);
-    }
-
-    private void Update()
-    {
-        // Smooth XP bar lerp
-        if (xpBarFill != null && !Mathf.Approximately(currentXpFill, targetXpFill))
-        {
-            currentXpFill = Mathf.MoveTowards(currentXpFill, targetXpFill, xpLerpSpeed * Time.deltaTime);
-            xpBarFill.fillAmount = currentXpFill;
-        }
     }
 
     // Called by tab buttons (index 0-4 maps to MenuTab enum)
@@ -114,28 +96,9 @@ public class MainMenuManager : MonoBehaviour
         if (goldText != null)
             goldText.text = FormatNumber(ScoreManager.Instance.Coins);
         if (gemText != null)
-            gemText.text = FormatNumber(ScoreManager.Instance.Emeralds);
+            gemText.text = FormatNumber(ScoreManager.Instance.UpgradeStones);
         if (energyText != null)
-            energyText.text = "5/5"; // Placeholder — hook into energy system when available
-    }
-
-    public void RefreshXpBar(bool instant = false)
-    {
-        if (ScoreManager.Instance == null) return;
-
-        targetXpFill = ScoreManager.Instance.XPToNextLevel > 0
-            ? (float)ScoreManager.Instance.CurrentXP / ScoreManager.Instance.XPToNextLevel
-            : 0f;
-
-        if (levelText != null)
-            levelText.text = "Lv." + ScoreManager.Instance.CurrentLevel;
-
-        if (instant)
-        {
-            currentXpFill = targetXpFill;
-            if (xpBarFill != null)
-                xpBarFill.fillAmount = currentXpFill;
-        }
+            energyText.text = "5/5"; // Placeholder -- hook into energy system when available
     }
 
     public void SetStageInfo(int chapter, int stage)

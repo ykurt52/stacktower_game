@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Archero-style player character. Joystick movement, auto-attack when stationary.
@@ -320,7 +320,7 @@ public class ArenaCharacter : MonoBehaviour
             damageFlashTimer -= Time.deltaTime;
             if (modelRoot != null)
             {
-                // Scale pulse instead of color change — no material damage
+                // Scale pulse instead of color change -- no material damage
                 float pulse = 1f + Mathf.Sin(damageFlashTimer * 30f) * 0.1f;
                 modelRoot.transform.localScale = Vector3.one * pulse;
                 if (damageFlashTimer <= 0)
@@ -328,7 +328,7 @@ public class ArenaCharacter : MonoBehaviour
             }
         }
 
-        // Dodge roll — invincible + fast movement
+        // Dodge roll -- invincible + fast movement
         if (dodgeTimer > 0)
         {
             dodgeTimer -= Time.deltaTime;
@@ -340,7 +340,7 @@ public class ArenaCharacter : MonoBehaviour
             newPos.y = 0;
             transform.position = newPos;
 
-            // Dodge just finished — force back to idle so next frame transitions correctly
+            // Dodge just finished -- force back to idle so next frame transitions correctly
             if (dodgeTimer <= 0 && heroAnimator != null)
             {
                 heroAnimator.SetFloat("Speed", 0f);
@@ -520,9 +520,9 @@ public class ArenaCharacter : MonoBehaviour
     {
         return currentWeaponAnimType switch
         {
-            0 => 2.2f,   // unarmed — fist/kick range (wider than enemy melee 0.9)
-            1 => 3.2f,   // sword — melee swing range
-            2 => 12f,    // gun/ranged — projectile range
+            0 => 2.2f,   // unarmed -- fist/kick range (wider than enemy melee 0.9)
+            1 => 3.2f,   // sword -- melee swing range
+            2 => 12f,    // gun/ranged -- projectile range
             _ => 12f
         };
     }
@@ -681,20 +681,20 @@ public class ArenaCharacter : MonoBehaviour
         barRoot.SetParent(transform, false);
         barRoot.localPosition = new Vector3(0, yPos, 0);
 
-        // HP background (gray — represents missing HP)
+        // HP background (gray -- represents missing HP)
         CreateBarQuad(barRoot, "HPBarBG", barWidth, barH, new Color(0.25f, 0.25f, 0.25f));
 
-        // HP fill (green — represents current HP)
+        // HP fill (green -- represents current HP)
         hpBarFill = CreateBarQuad(barRoot, "HPFill", barWidth, barH - 0.005f, new Color(0.2f, 0.85f, 0.2f));
         hpBarFill.localPosition = new Vector3(0, 0, -0.005f);
 
-        // Shield bar background (gray — represents missing/no shield)
+        // Shield bar background (gray -- represents missing/no shield)
         bool hasShield = maxShield > 0;
         Color shieldBgColor = hasShield ? new Color(0.2f, 0.2f, 0.3f) : new Color(0.2f, 0.2f, 0.2f);
         shieldBarBg = CreateBarQuad(barRoot, "ShieldBG", barWidth, barH * 0.5f, shieldBgColor);
         shieldBarBg.localPosition = new Vector3(0, barH * 0.55f, 0);
 
-        // Shield bar fill (blue — represents current shield)
+        // Shield bar fill (blue -- represents current shield)
         shieldBarFill = CreateBarQuad(barRoot, "ShieldFill", barWidth, barH * 0.5f - 0.003f, new Color(0.3f, 0.6f, 1f));
         shieldBarFill.localPosition = new Vector3(0, barH * 0.55f, -0.005f);
 
@@ -756,7 +756,7 @@ public class ArenaCharacter : MonoBehaviour
         }
         else if (shieldBarBg != null)
         {
-            // No shield purchased — fully gray
+            // No shield purchased -- fully gray
             shieldBarBg.gameObject.SetActive(true);
             shieldBarBg.GetComponent<Renderer>().material.color = new Color(0.2f, 0.2f, 0.2f);
             if (shieldBarFill != null) shieldBarFill.gameObject.SetActive(false);

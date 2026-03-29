@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -111,7 +111,7 @@ public class ShopItemRow : MonoBehaviour
 
         if (!owned)
         {
-            // Not owned — show buy price
+            // Not owned -- show buy price
             levelText.text = info.description;
             levelText.color = new Color(0.75f, 0.75f, 0.85f);
             int cost = info.costs[0];
@@ -151,7 +151,7 @@ public class ShopItemRow : MonoBehaviour
                 levelText.color = new Color(0.75f, 0.75f, 0.85f);
 
                 // Button shows: coin cost + stone cost
-                buttonText.text = coinCost + " + " + stoneCost + "tas";
+                buttonText.text = coinCost + " + " + stoneCost + "<sprite name=\"diamond\">";
 
                 bool canUpgrade = ShopManager.Instance.CanBuy(info.id);
                 buyButton.interactable = canUpgrade;
@@ -243,6 +243,7 @@ public class ShopItemRow : MonoBehaviour
         equipButtonText.fontSizeMin = 8;
         equipButtonText.fontSizeMax = 14;
         equipButtonText.alignment = TextAlignmentOptions.Center;
+        equipButtonText.characterSpacing = 4f;
 
         // Adjust buy button to be smaller (upper portion)
         var buyRt = buyButton.GetComponent<RectTransform>();

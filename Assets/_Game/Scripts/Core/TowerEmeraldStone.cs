@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Collectible emerald stone. Rarer than blue upgrade stones.
@@ -73,7 +73,7 @@ public class TowerEmeraldStone : MonoBehaviour
         Color emeraldColor = new Color(0.05f, 0.7f, 0.25f);
         Color coreColor = new Color(0.3f, 1f, 0.5f);
 
-        // Main gem body — diamond shape via rotated cube
+        // Main gem body -- diamond shape via rotated cube
         var gem = GameObject.CreatePrimitive(PrimitiveType.Cube);
         gem.name = "EmeraldBody";
         gem.transform.SetParent(transform, false);

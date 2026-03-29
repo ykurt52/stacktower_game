@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Wizard enemy — stands on a platform and periodically places magic trap circles
+/// Wizard enemy -- stands on a platform and periodically places magic trap circles
 /// at the character's position. Traps deal damage when stepped on.
 /// Contact damage: 1. Trap damage: 2.
 /// </summary>
@@ -145,7 +145,7 @@ public class TowerWizard : MonoBehaviour
         modelRoot.transform.SetParent(transform, false);
         modelRoot.transform.localPosition = Vector3.zero;
 
-        // No Synty wizard model — use procedural (looks like actual wizard)
+        // No Synty wizard model -- use procedural (looks like actual wizard)
         Color robeColor = new Color(0.25f, 0.1f, 0.5f);
         Color hatColor = new Color(0.2f, 0.08f, 0.4f);
         Color skinColor = new Color(0.85f, 0.75f, 0.6f);

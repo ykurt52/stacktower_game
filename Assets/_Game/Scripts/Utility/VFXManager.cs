@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Spawns simple particle effects for game events.
-/// All effects are procedural — no external assets needed.
+/// All effects are procedural -- no external assets needed.
 /// </summary>
 public class VFXManager : MonoBehaviour
 {

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Central loader for Synty POLYGON prefabs.
@@ -74,7 +74,7 @@ public class SyntyAssets : MonoBehaviour
         if (IsLoaded)
             Debug.Log("[SyntyAssets] Loaded Synty prefabs successfully");
         else
-            Debug.LogWarning("[SyntyAssets] Synty prefabs not found in Resources/Synty/ — using procedural visuals");
+            Debug.LogWarning("[SyntyAssets] Synty prefabs not found in Resources/Synty/ -- using procedural visuals");
     }
 
     /// <summary>

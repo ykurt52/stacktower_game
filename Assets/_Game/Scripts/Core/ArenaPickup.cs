@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Map pickup that spawns between waves: heal, attack speed boost, magnet, shield.
@@ -162,7 +162,7 @@ public class ArenaPickup : MonoBehaviour
             case PickupType.AttackSpeed:
                 player.ApplyAttackSpeedBuff(5f, 0.5f);
                 FloatingText.Spawn(player.transform.position + Vector3.up * 1f,
-                    "HIZLI ATIŞ!", new Color(1f, 0.6f, 0.1f), 1f);
+                    "HIZLI ATIS!", new Color(1f, 0.6f, 0.1f), 1f);
                 break;
 
             case PickupType.Magnet:

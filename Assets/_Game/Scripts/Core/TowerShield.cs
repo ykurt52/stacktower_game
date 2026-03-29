@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Shield pickup — protects character from one hit.
+/// Shield pickup -- protects character from one hit.
 /// Glowing bubble visual that orbits the character when active.
 /// </summary>
 public class TowerShield : MonoBehaviour

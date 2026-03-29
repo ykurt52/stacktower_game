@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Collectible upgrade stone. Collected stones are used to enhance weapons (Metin2-style).
@@ -76,7 +76,7 @@ public class TowerUpgradeStone : MonoBehaviour
         Color stoneColor = new Color(0.6f, 0.2f, 0.9f);
         Color coreColor = new Color(0.9f, 0.5f, 1f);
 
-        // Main gem body — diamond shape via rotated cube
+        // Main gem body -- diamond shape via rotated cube
         var gem = GameObject.CreatePrimitive(PrimitiveType.Cube);
         gem.name = "GemBody";
         gem.transform.SetParent(transform, false);

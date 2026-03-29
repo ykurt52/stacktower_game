@@ -1,9 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Dynamically adjusts a RectTransform to fit within the device's safe area.
 /// Attach to a full-screen RectTransform that parents all interactive UI.
-/// Background elements should NOT be children of this — they stretch to screen edges.
+/// Background elements should NOT be children of this -- they stretch to screen edges.
 /// </summary>
 [RequireComponent(typeof(RectTransform))]
 public class SafeArea : MonoBehaviour

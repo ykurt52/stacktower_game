@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.Animations;
@@ -246,7 +246,7 @@ public class ModelAnimatorSetup
     }
 
     /// <summary>
-    /// Standard enemy controller — same 24 clips as MainCharacter but simpler:
+    /// Standard enemy controller -- same 24 clips as MainCharacter but simpler:
     /// Only uses Idle, Run, Punch_Right (melee attack), Death, HitRecieve.
     /// Enemies don't have weapon types.
     /// </summary>
@@ -328,7 +328,7 @@ public class ModelAnimatorSetup
     }
 
     /// <summary>
-    /// Zombie controller — crawls on ground, contact damage only, no attack animation.
+    /// Zombie controller -- crawls on ground, contact damage only, no attack animation.
     /// Idle=Crawl, Move=Crawl, Death=Death, Hit=HitReact
     /// </summary>
     private static bool CreateZombieController(string fbxPath)

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
@@ -46,7 +46,7 @@ public class AdManager : MonoBehaviour
         {
             // TODO: Uncomment when Google Mobile Ads SDK is imported
             // MobileAds.Initialize(initStatus => { LoadInterstitial(); LoadRewarded(); });
-            Debug.Log("[AdManager] Ad SDK initialization skipped — SDK not imported yet.");
+            Debug.Log("[AdManager] Ad SDK initialization skipped -- SDK not imported yet.");
         }
         catch (System.Exception e)
         {
@@ -60,7 +60,7 @@ public class AdManager : MonoBehaviour
     {
         try
         {
-            Debug.Log("[AdManager] Interstitial load skipped — SDK not imported yet.");
+            Debug.Log("[AdManager] Interstitial load skipped -- SDK not imported yet.");
         }
         catch (System.Exception e)
         {
@@ -69,14 +69,14 @@ public class AdManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Shows interstitial every N games (not every game — reduces churn).
+    /// Shows interstitial every N games (not every game -- reduces churn).
     /// </summary>
     public void ShowInterstitial()
     {
         gamesPlayedSinceAd++;
         if (gamesPlayedSinceAd < interstitialEveryNGames)
         {
-            Debug.Log("[AdManager] Interstitial skipped — " + gamesPlayedSinceAd + "/" + interstitialEveryNGames);
+            Debug.Log("[AdManager] Interstitial skipped -- " + gamesPlayedSinceAd + "/" + interstitialEveryNGames);
             return;
         }
 
@@ -85,7 +85,7 @@ public class AdManager : MonoBehaviour
         {
             // TODO: Implement when Google Mobile Ads SDK is imported
             // if (interstitialAd != null && interstitialAd.CanShowAd()) { interstitialAd.Show(); }
-            Debug.Log("[AdManager] ShowInterstitial called — SDK not imported yet.");
+            Debug.Log("[AdManager] ShowInterstitial called -- SDK not imported yet.");
         }
         catch (System.Exception e)
         {
@@ -99,7 +99,7 @@ public class AdManager : MonoBehaviour
     {
         try
         {
-            Debug.Log("[AdManager] Rewarded load skipped — SDK not imported yet.");
+            Debug.Log("[AdManager] Rewarded load skipped -- SDK not imported yet.");
         }
         catch (System.Exception e)
         {
@@ -118,8 +118,8 @@ public class AdManager : MonoBehaviour
             // TODO: Implement when Google Mobile Ads SDK is imported
             // if (rewardedAd != null && rewardedAd.CanShowAd()) { rewardedAd.Show(OnUserEarnedReward); return; }
 
-            // SDK not imported — grant reward immediately for testing
-            Debug.Log("[AdManager] ShowRewarded('" + rewardType + "') — SDK not imported, granting reward for testing.");
+            // SDK not imported -- grant reward immediately for testing
+            Debug.Log("[AdManager] ShowRewarded('" + rewardType + "') -- SDK not imported, granting reward for testing.");
             GrantReward();
         }
         catch (System.Exception e)

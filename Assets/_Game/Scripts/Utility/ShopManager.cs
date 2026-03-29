@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
@@ -38,7 +38,7 @@ public class ShopManager : MonoBehaviour
 
     private static readonly ItemInfo[] allItems =
     {
-        // SHOP (consumables — bought per game)
+        // SHOP (consumables -- bought per game)
         new ItemInfo
         {
             id = "shield", name = "KALKAN",
@@ -68,77 +68,25 @@ public class ShopManager : MonoBehaviour
             maxLevel = 1, costs = new[] { 35 }
         },
 
-        // SKILLS (permanent upgrades)
-        new ItemInfo
-        {
-            id = "jump", name = "JUMP BOOST",
-            description = "Ziplama gucunu arttirir",
-            category = ItemCategory.Skills,
-            maxLevel = 5, costs = new[] { 50, 120, 250, 500, 1000 }
-        },
-        new ItemInfo
-        {
-            id = "doublecoins", name = "DOUBLE COINS",
-            description = "Coin kazanimini 2x yap",
-            category = ItemCategory.Skills,
-            maxLevel = 1, costs = new[] { 300 }
-        },
-        new ItemInfo
-        {
-            id = "extralife", name = "EKSTRA CAN",
-            description = "Olunce 1 kez dirilis",
-            category = ItemCategory.Skills,
-            maxLevel = 3, costs = new[] { 200, 500, 1200 }
-        },
-        new ItemInfo
-        {
-            id = "coinrange", name = "COIN MENZILI",
-            description = "Coinleri uzaktan topla",
-            category = ItemCategory.Skills,
-            maxLevel = 3, costs = new[] { 80, 200, 450 }
-        },
-        new ItemInfo
-        {
-            id = "laserresist", name = "LAZER DIRENCI",
-            description = "Lazer hizi kalici azalsin",
-            category = ItemCategory.Skills,
-            maxLevel = 3, costs = new[] { 150, 400, 900 }
-        },
-        new ItemInfo
-        {
-            id = "armor", name = "ZIRH",
-            description = "Gelen hasari azaltir",
-            category = ItemCategory.Skills,
-            maxLevel = 3, costs = new[] { 100, 300, 700 }
-        },
-        new ItemInfo
-        {
-            id = "healthregen", name = "CAN YENILEME",
-            description = "Zamanla can yenile",
-            category = ItemCategory.Skills,
-            maxLevel = 3, costs = new[] { 120, 350, 800 }
-        },
-        new ItemInfo
-        {
-            id = "armorregen", name = "ZIRH YENILEME",
-            description = "Zamanla zirh yenile",
-            category = ItemCategory.Skills,
-            maxLevel = 3, costs = new[] { 150, 400, 900 }
-        },
-        new ItemInfo
-        {
-            id = "hp", name = "CAN ARTISI",
-            description = "Maksimum canini arttirir",
-            category = ItemCategory.Skills,
-            maxLevel = 198, costs = null // Generated dynamically
-        },
-        new ItemInfo
-        {
-            id = "shieldupgrade", name = "KALKAN ARTISI",
-            description = "Kalkan satin al ve guclendir",
-            category = ItemCategory.Skills,
-            maxLevel = 198, costs = null // Generated dynamically
-        },
+        // ── SKILLS (permanent upgrades) ──
+        // Costs generated dynamically in Awake via GenerateExpCosts
+
+        // Tier A — 250 max, heavy scaling (attack, hp, def, xp, gold, healthregen)
+        new ItemInfo { id = "attack",      name = "GUC",           description = "Saldiri gucunu arttirir",    category = ItemCategory.Skills, maxLevel = 250, costs = null },
+        new ItemInfo { id = "hp",           name = "CAN",           description = "Maksimum canini arttirir",   category = ItemCategory.Skills, maxLevel = 250, costs = null },
+        new ItemInfo { id = "armor",        name = "DEFANS",        description = "Gelen hasari azaltir",       category = ItemCategory.Skills, maxLevel = 250, costs = null },
+        new ItemInfo { id = "xpboost",      name = "DENEYIM",       description = "XP kazanimini arttirir",     category = ItemCategory.Skills, maxLevel = 250, costs = null },
+        new ItemInfo { id = "goldboost",    name = "ALTIN",         description = "Altin kazanimini arttirir",  category = ItemCategory.Skills, maxLevel = 250, costs = null },
+        new ItemInfo { id = "healthregen",  name = "CAN YENILEME",  description = "Saniyede can yeniler",       category = ItemCategory.Skills, maxLevel = 250, costs = null },
+
+        // Tier B — 100 max, moderate scaling (vampirism, dodge)
+        new ItemInfo { id = "vampirism",  name = "VAMPIR",  description = "Oldururken can kazandirir",              category = ItemCategory.Skills, maxLevel = 100, costs = null },
+        new ItemInfo { id = "dodge",      name = "DODGE",   description = "Saldirilardan kacinma sansi (%0->%50)",  category = ItemCategory.Skills, maxLevel = 100, costs = null },
+
+        // Tier C — 100 max, linear mapping (speed, critical, attackspeed)
+        new ItemInfo { id = "speed",       name = "HIZ",           description = "Hareket hizi (1.0 -> 3.0)",      category = ItemCategory.Skills, maxLevel = 100, costs = null },
+        new ItemInfo { id = "critical",    name = "KRITIK",        description = "Kritik sans %0 -> %100 (x2 hasar)", category = ItemCategory.Skills, maxLevel = 100, costs = null },
+        new ItemInfo { id = "attackspeed", name = "SALDIRI HIZI",  description = "Saldiri hizi (1.0 -> 7.0)",     category = ItemCategory.Skills, maxLevel = 100, costs = null },
 
         // WEAPONS (permanent, upgradeable +0 to +10, Archero-style)
         new ItemInfo
@@ -203,13 +151,13 @@ public class ShopManager : MonoBehaviour
         },
     };
 
-    // Consumable flags — reset each game
+    // Consumable flags -- reset each game
     private bool shieldActive;
     private bool magnetActive;
     private bool headstartActive;
     private bool slowlaserActive;
 
-    // Weapon — equipped weapon id (persistent selection, not consumed)
+    // Weapon -- equipped weapon id (persistent selection, not consumed)
     private string equippedWeaponId;
 
     // Persistent storage
@@ -229,7 +177,7 @@ public class ShopManager : MonoBehaviour
         }
         Instance = this;
 
-        // Load equipped weapon from prefs — also clear if weapon no longer exists in item list
+        // Load equipped weapon from prefs -- also clear if weapon no longer exists in item list
         equippedWeaponId = PlayerPrefs.GetString(EquippedWeaponKey, "");
         if (!string.IsNullOrEmpty(equippedWeaponId))
         {
@@ -237,22 +185,35 @@ public class ShopManager : MonoBehaviour
                 equippedWeaponId = "";
         }
 
-        // Generate dynamic cost arrays for hp and shield upgrades (198 levels each)
-        GenerateScalingCosts("hp", 198, 10, 500);
-        GenerateScalingCosts("shieldupgrade", 198, 15, 600);
+        // Generate exponential cost curves for all talent skills
+        // Tier A (250 max): baseCost=10, growth=1.055 → lv1=10, lv50≈150, lv100≈2K, lv250≈800K
+        GenerateExpCosts("attack",     10, 1.055f);
+        GenerateExpCosts("hp",         10, 1.055f);
+        GenerateExpCosts("armor",      12, 1.055f);
+        GenerateExpCosts("xpboost",    10, 1.055f);
+        GenerateExpCosts("goldboost",  10, 1.055f);
+        GenerateExpCosts("healthregen",12, 1.055f);
 
-        // No auto-grant — player starts unarmed, buys weapons from shop
+        // Tier B (100 max): baseCost=15, growth=1.065 → lv1=15, lv50≈340, lv100≈8K
+        GenerateExpCosts("vampirism", 15, 1.065f);
+        GenerateExpCosts("dodge",     15, 1.065f);
+
+        // Tier C (100 max): baseCost=20, growth=1.07 → lv1=20, lv50≈570, lv100≈16K
+        GenerateExpCosts("speed",       20, 1.07f);
+        GenerateExpCosts("critical",    20, 1.07f);
+        GenerateExpCosts("attackspeed", 20, 1.07f);
+
+        // No auto-grant -- player starts unarmed, buys weapons from shop
     }
 
-    private void GenerateScalingCosts(string id, int levels, int baseCost, int maxCost)
+    private void GenerateExpCosts(string id, int baseCost, float growthRate)
     {
         var info = GetItem(id);
         if (info == null || info.costs != null) return;
-        info.costs = new int[levels];
-        for (int i = 0; i < levels; i++)
+        info.costs = new int[info.maxLevel];
+        for (int i = 0; i < info.maxLevel; i++)
         {
-            float t = (float)i / (levels - 1);
-            info.costs[i] = Mathf.RoundToInt(Mathf.Lerp(baseCost, maxCost, t * t));
+            info.costs[i] = Mathf.Max(baseCost, Mathf.RoundToInt(baseCost * Mathf.Pow(growthRate, i)));
         }
     }
 
@@ -389,7 +350,7 @@ public class ShopManager : MonoBehaviour
 
             if (level < 0)
             {
-                // Not owned — check buy cost
+                // Not owned -- check buy cost
                 return ScoreManager.Instance.Coins >= info.costs[0];
             }
 
@@ -525,7 +486,7 @@ public class ShopManager : MonoBehaviour
         }
     }
 
-    // Consume methods — called at game start, returns true if was active
+    // Consume methods -- called at game start, returns true if was active
     public bool ConsumeShield()
     {
         if (!shieldActive) return false;
@@ -570,7 +531,7 @@ public class ShopManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Get equipped weapon info for game start. Weapon is NOT consumed — it's permanent.
+    /// Get equipped weapon info for game start. Weapon is NOT consumed -- it's permanent.
     /// Returns null if no weapon equipped.
     /// </summary>
     public ItemInfo GetWeaponForGame()
@@ -581,53 +542,103 @@ public class ShopManager : MonoBehaviour
     }
 
     // ── Gameplay queries (Skills) ──
+    // Stat formulas follow the user-defined tier system:
+    //   Tier A (250 max): increasing increments — gain(n) = 10 + floor(n * 0.5)
+    //   Tier B (100 max): moderate increments  — gain(n) = 5 + floor(n * 0.3)
+    //   Tier C (100 max): linear mapping to a fixed range
 
-    public float GetJumpMultiplier()
+    /// <summary>
+    /// Cumulative stat for Tier A skills (attack, hp, armor, xp, gold, healthregen).
+    /// Each level adds: 10 + floor(level * 0.5). Total grows quadratically.
+    /// Level 1: +10, Level 50: +35, Level 100: +60, Level 250: +135
+    /// </summary>
+    public static int GetTierAStat(int level)
     {
-        int level = GetSkillLevel("jump");
-        return 1f + level * 0.08f; // +8% per level, max +40%
+        int total = 0;
+        for (int i = 0; i < level; i++)
+            total += 10 + i / 2;
+        return total;
     }
 
-    public bool HasDoubleCoins()
+    /// <summary>
+    /// Cumulative stat for Tier B skills (vampirism, dodge).
+    /// Each level adds: 5 + floor(level * 0.3). Moderate growth.
+    /// </summary>
+    public static int GetTierBStat(int level)
     {
-        return GetSkillLevel("doublecoins") > 0;
+        int total = 0;
+        for (int i = 0; i < level; i++)
+            total += 5 + (i * 3) / 10;
+        return total;
     }
 
-    public int GetExtraLives()
+    // ── Attack (Tier A, 250 max) ──
+    public int GetAttackBonus() => GetTierAStat(GetSkillLevel("attack"));
+
+    // ── HP (Tier A, 250 max) ──
+    public int GetHPBonus() => GetTierAStat(GetSkillLevel("hp"));
+
+    // ── Defense / Armor (Tier A, 250 max) ──
+    public int GetDefenseBonus() => GetTierAStat(GetSkillLevel("armor"));
+
+    // ── XP Boost (Tier A, 250 max) — bonus XP per kill ──
+    public int GetXPBonus() => GetTierAStat(GetSkillLevel("xpboost"));
+
+    // ── Gold Boost (Tier A, 250 max) — bonus gold per kill ──
+    public int GetGoldBonus() => GetTierAStat(GetSkillLevel("goldboost"));
+
+    // ── Health Regen (Tier A, 250 max) — HP per second ──
+    public int GetHealthRegenPerSec() => GetTierAStat(GetSkillLevel("healthregen"));
+
+    // ── Vampirism (Tier B, 100 max) — HP gained per kill ──
+    public int GetVampirismBonus() => GetTierBStat(GetSkillLevel("vampirism"));
+
+    // ── Dodge (Tier B, 100 max) — 0% to 50% evasion chance ──
+    public float GetDodgeChance()
     {
-        return GetSkillLevel("extralife");
+        int level = GetSkillLevel("dodge");
+        return level * 0.005f; // 100 levels: 0.0 → 0.50 (50%)
     }
 
-    public float GetCoinRangeMultiplier()
+    // ── Speed (Tier C, 100 max) — base 1.0, max 3.0 ──
+    public float GetMoveSpeed()
     {
-        int level = GetSkillLevel("coinrange");
-        return 1f + level * 0.5f; // 1x, 1.5x, 2x, 2.5x range
+        int level = GetSkillLevel("speed");
+        return 1f + level * 0.02f; // 100 levels: 1.0 → 3.0
     }
 
-    public float GetLaserSpeedMultiplier()
+    // ── Critical (Tier C, 100 max) — 0% to 100% chance, x2 damage ──
+    public float GetCriticalChance()
     {
-        int level = GetSkillLevel("laserresist");
-        return 1f - level * 0.1f; // 1.0, 0.9, 0.8, 0.7 speed
+        int level = GetSkillLevel("critical");
+        return level * 0.01f; // 100 levels: 0.0 → 1.0
     }
 
-    public int GetArmorPoints()
+    // ── Attack Speed (Tier C, 100 max) — base 1.0, max 7.0 ──
+    public float GetAttackSpeed()
     {
-        return GetSkillLevel("armor"); // 0, 1, 2, 3 armor
+        int level = GetSkillLevel("attackspeed");
+        return 1f + level * 0.06f; // 100 levels: 1.0 → 7.0
     }
 
+    // ── Backward-compatible wrappers for old API ──
+    // These map removed/renamed skills to the new system so runtime code doesn't break.
+
+    public float GetJumpMultiplier() => 1f; // Jump skill removed
+    public bool HasDoubleCoins() => GetSkillLevel("goldboost") > 0;
+    public int GetExtraLives() => 0; // Removed — handled by arena revive system
+    public float GetCoinRangeMultiplier() => 1f + GetSkillLevel("goldboost") * 0.005f;
+    public float GetLaserSpeedMultiplier() => 1f; // Replaced by attackspeed
+    public int GetProjectileSpeedBonus() => 0; // Removed — merged into attackspeed
+    public int GetJumpBonus() => 0; // Jump skill removed
+    public int GetArmorPoints() => GetDefenseBonus();
     public float GetHealthRegenInterval()
     {
-        int level = GetSkillLevel("healthregen");
-        if (level <= 0) return 0f;
-        return level switch { 1 => 15f, 2 => 10f, 3 => 6f, _ => 0f };
+        int regen = GetHealthRegenPerSec();
+        if (regen <= 0) return 0f;
+        return Mathf.Max(0.5f, 10f / regen); // Higher regen → shorter interval
     }
-
-    public float GetArmorRegenInterval()
-    {
-        int level = GetSkillLevel("armorregen");
-        if (level <= 0) return 0f;
-        return level switch { 1 => 20f, 2 => 14f, 3 => 8f, _ => 0f };
-    }
+    public float GetArmorRegenInterval() => GetHealthRegenInterval() * 1.5f;
 
     // ── Reset ──
 

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Magic projectile fired by TowerWizard. Flies in an arc from wizard to target position.
@@ -132,7 +132,7 @@ public class TowerWizardProjectile : MonoBehaviour
 
     private void CreateWarningCircle()
     {
-        // Warning circle at landing position — so the player can see where the trap will land
+        // Warning circle at landing position -- so the player can see where the trap will land
         warningCircle = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         warningCircle.name = "WarningCircle";
         warningCircle.transform.position = targetPos;

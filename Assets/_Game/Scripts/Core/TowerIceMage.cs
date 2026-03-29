@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Ice Mage enemy — stands on a platform, shoots ice projectiles that slow the character.
+/// Ice Mage enemy -- stands on a platform, shoots ice projectiles that slow the character.
 /// Also freezes the platform it stands on (visual effect + slippery).
 /// Contact damage: 1. Ice projectile damage: 1 + slow effect.
 /// </summary>
@@ -134,7 +134,7 @@ public class TowerIceMage : MonoBehaviour
         modelRoot.transform.SetParent(transform, false);
         modelRoot.transform.localPosition = Vector3.zero;
 
-        // No Synty ice mage model — use procedural (looks like actual mage)
+        // No Synty ice mage model -- use procedural (looks like actual mage)
         Color robeColor = new Color(0.4f, 0.7f, 0.9f);
         Color darkRobe = new Color(0.2f, 0.4f, 0.6f);
         Color skinColor = new Color(0.7f, 0.8f, 0.9f);
